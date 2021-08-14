@@ -21,9 +21,13 @@ description:         Please see the README on GitHub at <https://github.com/gith
 
 dependencies:
 - base >= 4.7 && < 5
+- JuicyPixels >= 3.3.5
 
 library:
   source-dirs: src
+  dependencies:
+    - optparse-applicative >= 0.16
+    - JuicyPixels >= 3.3.5
 
 executables:
   cds-exe:
