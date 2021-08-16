@@ -2,26 +2,45 @@
 
 module Image (
     getImage,
+    LImage,
+    width,
+    height,
     makeLineRadii
 ) where
 
-import Codec.Picture
-import Options.Applicative.Types (OptVisibility(Internal))
+import Control.Comonad
+import qualified Codec.Picture       as JP
+import qualified Data.Vector         as V
 
--- import qualified Data.Vector as V
+data LImage a = LImage {
+    width :: !Int
+  , height :: !Int
+  , pixels :: V.Vector a
+}
 
--- data Image a = Image {
---     width :: {-# UNPACK #-} !Int
---   , height :: {-# UNPACK #-} !Int
---   , pixels :: V.Vector a
--- }
+{-# INLINE pixelAt #-}
+pixelAt :: LImage a -> Int -> Int -> a
+pixelAt (LImage w h ps) x y = ps V.! (y * w + x)
 
-getImage :: FilePath -> IO (Either String (Image PixelRGB8))
+instance Functor LImage where
+    fmap f (LImage w h ps) = LImage w h (fmap f ps)
+
+getImage :: FilePath -> IO (Either String (LImage JP.PixelRGB8))
 getImage fp = do 
-    eimg <- readImage fp
+    eimg <- JP.readImage fp
     case eimg of
         Left err -> return (Left $ "Could not read image: " ++ err)
-        Right img -> return (Right (convertRGB8 img))
+        Right dimg -> 
+            return (Right (LImage width height pixels))
+            where img = JP.convertRGB8 dimg
+                  width = JP.imageWidth img
+                  height = JP.imageHeight img
+                  pixels = fmap 
+                            (\i -> 
+                                let x = i `div` width
+                                    y = i `rem` width
+                                in JP.pixelAt img x y)
+                            (V.enumFromN 0 (width * height -1))
 
 
 makeLineRadii :: Float -> (Int, [Int])
@@ -44,7 +63,7 @@ makeLineRadii r =
                     (i - 2 * kernelRadius - 1) `div` 2
             | otherwise -> i
     in
-        (kernelSize,
+        (kernelRadius,
          map
             (\i -> 
                 let y = yFromIndex i
@@ -65,3 +84,26 @@ adjustRadius r
 
 isqrt :: Float -> Int
 isqrt v = floor $ sqrt (v + 1e-10)
+
+data FocusedImage a = FocusedImage {
+    img :: LImage a
+  , currX :: !Int
+  , currY :: !Int
+}
+
+instance Functor FocusedImage where
+    fmap f (FocusedImage img x y) = FocusedImage (fmap f img) x y
+
+instance Comonad FocusedImage where
+    extract (FocusedImage img x y) = pixelAt img x y
+
+    extend f (FocusedImage img@(LImage w h _) x y) = FocusedImage
+        (LImage w h $ V.generate (w * h) $ \i ->
+            let (y', x') = i `divMod` w
+            in f (FocusedImage img x' y'))
+        x y
+
+focus :: LImage a -> FocusedImage a
+focus img 
+    | width img > 0 && height img > 0 = FocusedImage img 0 0
+    | otherwise = error "Cannot focus on an empty image"

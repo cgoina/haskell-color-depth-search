@@ -3,7 +3,11 @@ module Main where
 import Codec.Picture
 
 import Args (parseCmdArgs, masksPaths)
-import Image (getImage, makeLineRadii)
+import Image (LImage,
+              width,
+              height,
+              getImage,
+              makeLineRadii)
 
 main :: IO ()
 main = do
@@ -14,5 +18,5 @@ main = do
     putStrLn (show rs)
     case eimg of
         Left err -> putStrLn err
-        Right img -> putStrLn (show (imageWidth img) ++ " " ++ show (imageHeight img))
+        Right img -> putStrLn (show (width img) ++ " " ++ show (height img))
     return ()

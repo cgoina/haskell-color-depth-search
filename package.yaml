@@ -28,6 +28,8 @@ library:
   dependencies:
     - optparse-applicative >= 0.16
     - JuicyPixels >= 3.3.5
+    - comonad >= 5.0.8
+    - vector >= 0.12.3.0
 
 executables:
   cds-exe:
