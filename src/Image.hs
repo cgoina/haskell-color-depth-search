@@ -1,5 +1,6 @@
 {-# LANGUAGE MultiWayIf #-}
 
+
 module Image (
     getImage,
     LImage,
@@ -8,9 +9,11 @@ module Image (
     makeLineRadii
 ) where
 
+
 import Control.Comonad
 import qualified Codec.Picture       as JP
 import qualified Data.Vector         as V
+
 
 data LImage a = LImage {
     width :: !Int
@@ -18,12 +21,15 @@ data LImage a = LImage {
   , pixels :: V.Vector a
 }
 
+
 {-# INLINE pixelAt #-}
 pixelAt :: LImage a -> Int -> Int -> a
 pixelAt (LImage w h ps) x y = ps V.! (y * w + x)
 
+
 instance Functor LImage where
     fmap f (LImage w h ps) = LImage w h (fmap f ps)
+
 
 getImage :: FilePath -> IO (Either String (LImage JP.PixelRGB8))
 getImage fp = do 
@@ -76,12 +82,15 @@ makeLineRadii r =
             ) 
             [0..kernelSize-1])
 
+
+{-# INLINE adjustRadius #-}
 adjustRadius :: Float -> Float
 adjustRadius r
     | r >= 1.5 && r < 1.75 = 1.75
     | r >= 2.5 && r < 2.85 = 2.85
     | otherwise = r
 
+{-# INLINE isqrt #-}
 isqrt :: Float -> Int
 isqrt v = floor $ sqrt (v + 1e-10)
 
@@ -107,3 +116,14 @@ focus :: LImage a -> FocusedImage a
 focus img 
     | width img > 0 && height img > 0 = FocusedImage img 0 0
     | otherwise = error "Cannot focus on an empty image"
+
+neighbour :: Int -> Int -> FocusedImage a -> Maybe (FocusedImage a)
+neighbour dx dy (FocusedImage img x y)
+    | outOfBounds = Nothing
+    | otherwise   = Just (FocusedImage img x' y')
+  where
+    x'          = x + dx
+    y'          = y + dy
+    outOfBounds =
+        x' < 0 || x' >= width img ||
+        y' < 0 || y' >= height img
