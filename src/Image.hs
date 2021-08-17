@@ -2,11 +2,11 @@
 
 
 module Image (
-    getImage
-  , LImage
-  , width
-  , height
+    LImage(..)
+  , pixelAt
   , maxFilter
+  , readImage
+  , writeImageAsPng
 ) where
 
 
@@ -18,8 +18,12 @@ import qualified Data.Vector         as V
 data LImage p = LImage {
     width :: !Int
   , height :: !Int
-  , pixels :: V.Vector p
+  , pixels :: !(V.Vector p)
 } deriving Show
+
+
+instance Functor LImage where
+    fmap f (LImage w h ps) = LImage w h (fmap f ps)
 
 
 {-# INLINE pixelAt #-}
@@ -27,12 +31,8 @@ pixelAt :: LImage a -> Int -> Int -> a
 pixelAt (LImage w h ps) x y = ps V.! (y * w + x)
 
 
-instance Functor LImage where
-    fmap f (LImage w h ps) = LImage w h (fmap f ps)
-
-
-getImage :: FilePath -> IO (Either String (LImage JP.PixelRGB8))
-getImage fp = do
+readImage :: FilePath -> IO (Either String (LImage JP.PixelRGB8))
+readImage fp = do
     eimg <- JP.readImage fp
     case eimg of
         Left err -> return (Left $ "Could not read image: " ++ err)
@@ -43,10 +43,14 @@ getImage fp = do
                   height = JP.imageHeight img
                   pixels = fmap
                             (\i ->
-                                let x = i `div` width
-                                    y = i `rem` width
+                                let x = i `rem` width
+                                    y = i `div` width
                                 in JP.pixelAt img x y)
-                            (V.enumFromN 0 (width * height -1))
+                            (V.enumFromN 0 (width * height))
+
+
+writeImageAsPng :: FilePath -> LImage JP.PixelRGB8 -> IO ()
+writeImageAsPng filePath img = JP.writePng filePath $ JP.generateImage (pixelAt img) (width img) (height img)
 
 
 maxFilter :: (Ord p, RealFrac r) => LImage p -> r -> LImage p
