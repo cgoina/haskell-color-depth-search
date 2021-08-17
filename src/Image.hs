@@ -2,24 +2,24 @@
 
 
 module Image (
-    getImage,
-    LImage,
-    width,
-    height,
-    makeLineRadii
+    getImage
+  , LImage
+  , width
+  , height
+  , maxFilter
 ) where
 
 
 import Control.Comonad
+import Data.Maybe (maybeToList)
 import qualified Codec.Picture       as JP
 import qualified Data.Vector         as V
 
-
-data LImage a = LImage {
+data LImage p = LImage {
     width :: !Int
   , height :: !Int
-  , pixels :: V.Vector a
-}
+  , pixels :: V.Vector p
+} deriving Show
 
 
 {-# INLINE pixelAt #-}
@@ -32,76 +32,87 @@ instance Functor LImage where
 
 
 getImage :: FilePath -> IO (Either String (LImage JP.PixelRGB8))
-getImage fp = do 
+getImage fp = do
     eimg <- JP.readImage fp
     case eimg of
         Left err -> return (Left $ "Could not read image: " ++ err)
-        Right dimg -> 
+        Right dimg ->
             return (Right (LImage width height pixels))
             where img = JP.convertRGB8 dimg
                   width = JP.imageWidth img
                   height = JP.imageHeight img
-                  pixels = fmap 
-                            (\i -> 
+                  pixels = fmap
+                            (\i ->
                                 let x = i `div` width
                                     y = i `rem` width
                                 in JP.pixelAt img x y)
                             (V.enumFromN 0 (width * height -1))
 
 
-makeLineRadii :: Float -> (Int, [Int])
-makeLineRadii r =
+maxFilter :: (Ord p, RealFrac r) => LImage p -> r -> LImage p
+maxFilter img r = unfocus $ extend (`maxPixel` r) (focus img)
+
+
+maxPixel :: (Ord p, RealFrac r) => FocusedImage p -> r -> p
+maxPixel pixel r = max [
+    extract p
+        | (dx, dy) <- expandAllCoords $ circleRadii r
+        , p <- maybeToList (neighbour dx dy pixel)]
+    where
+        max = foldr1 (\x y -> if x >= y then x else y)
+
+
+type RelCoord = (Int, Int)
+
+
+circleRadii :: RealFrac r => r -> [RelCoord]
+circleRadii r =
     let radius = adjustRadius r
         r2 = floor (radius * radius) + 1
-        kernelRadius = isqrt (radius * radius + 1.0)
-        kernelHeight = 2 * kernelRadius + 1
-        kernelSize = 2 * kernelHeight
-        yFromIndex = \i -> if
-            | i < 2 * kernelRadius ->
-                if even i then
-                    (2 * kernelRadius - i) `div` 2
-                else
-                    (2 * kernelRadius -i + 1) `div` 2
-            | i > 2 * kernelRadius + 1  ->
-                if even i then
-                    (i - 2 * kernelRadius) `div` 2
-                else
-                    (i - 2 * kernelRadius - 1) `div` 2
-            | otherwise -> i
+        kernelRadius = isqrt (radius * radius + 1)
+        {-# INLINE adjustRadius #-}
+        adjustRadius :: RealFrac a => a -> a
+        adjustRadius r
+            | r >= 1.5 && r < 1.75 = 1.75
+            | r >= 2.5 && r < 2.85 = 2.85
+            | otherwise = r
+        {-# INLINE isqrt #-}
+        isqrt :: RealFrac a => a -> Int
+        isqrt v = floor $ sqrt (realToFrac v + 1e-10)
     in
-        (kernelRadius,
-         map
-            (\i -> 
-                let y = yFromIndex i
-                    dx = isqrt (fromIntegral (r2 - y * y))
-                in if
-                    | i == 2 * kernelRadius -> -kernelRadius
-                    | i == 2 * kernelRadius + 1 -> kernelRadius
-                    | even i -> -dx
-                    | otherwise -> dx
-            ) 
-            [0..kernelSize-1])
+        concatMap
+            (\i ->
+                if i == 0 then [(0, kernelRadius)] else (
+                   let dx = i
+                       dy = isqrt (fromIntegral (r2 - i * i))
+                   in
+                       [(-dx, dy), (dx, dy)])
+            )
+            [0..kernelRadius]
 
 
-{-# INLINE adjustRadius #-}
-adjustRadius :: Float -> Float
-adjustRadius r
-    | r >= 1.5 && r < 1.75 = 1.75
-    | r >= 2.5 && r < 2.85 = 2.85
-    | otherwise = r
+expandCoords :: RelCoord -> [RelCoord]
+expandCoords (dx, dy) =
+    if dy == 0 then
+        [(dx, dy)]
+    else
+        [(dx, dy') | dy' <- [-dy..dy] ]
 
-{-# INLINE isqrt #-}
-isqrt :: Float -> Int
-isqrt v = floor $ sqrt (v + 1e-10)
 
-data FocusedImage a = FocusedImage {
-    img :: LImage a
+expandAllCoords :: [RelCoord] -> [RelCoord]
+expandAllCoords = concatMap expandCoords
+
+
+data FocusedImage p = FocusedImage {
+    img :: LImage p
   , currX :: !Int
   , currY :: !Int
 }
 
+
 instance Functor FocusedImage where
     fmap f (FocusedImage img x y) = FocusedImage (fmap f img) x y
+
 
 instance Comonad FocusedImage where
     extract (FocusedImage img x y) = pixelAt img x y
@@ -112,12 +123,17 @@ instance Comonad FocusedImage where
             in f (FocusedImage img x' y'))
         x y
 
-focus :: LImage a -> FocusedImage a
-focus img 
+
+focus :: LImage p -> FocusedImage p
+focus img
     | width img > 0 && height img > 0 = FocusedImage img 0 0
     | otherwise = error "Cannot focus on an empty image"
 
-neighbour :: Int -> Int -> FocusedImage a -> Maybe (FocusedImage a)
+
+unfocus :: FocusedImage p -> LImage p
+unfocus fimg@(FocusedImage img _ _) = img
+
+
 neighbour dx dy (FocusedImage img x y)
     | outOfBounds = Nothing
     | otherwise   = Just (FocusedImage img x' y')
@@ -127,3 +143,4 @@ neighbour dx dy (FocusedImage img x y)
     outOfBounds =
         x' < 0 || x' >= width img ||
         y' < 0 || y' >= height img
+
