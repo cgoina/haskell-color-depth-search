@@ -3,14 +3,15 @@
 
 module Image (
     LImage(..)
-  , pixelAt
+  , clearRegion
+  , horizontalMirror
   , maxFilter
   , readImage
   , writeImageAsPng
 ) where
 
 
-import Control.Comonad
+import Control.Comonad ( Comonad(extract, extend), Functor )
 import Data.Maybe (maybeToList)
 import qualified Codec.Picture       as JP
 import qualified Data.Vector         as V
@@ -18,17 +19,12 @@ import qualified Data.Vector         as V
 data LImage p = LImage {
     width :: !Int
   , height :: !Int
-  , pixels :: !(V.Vector p)
-} deriving Show
+  , pixelAt :: Int -> Int -> p
+}
 
 
 instance Functor LImage where
-    fmap f (LImage w h ps) = LImage w h (fmap f ps)
-
-
-{-# INLINE pixelAt #-}
-pixelAt :: LImage a -> Int -> Int -> a
-pixelAt (LImage w h ps) x y = ps V.! (y * w + x)
+    fmap f (LImage w h ps) = LImage w h (\x y -> f $ ps x y)
 
 
 readImage :: FilePath -> IO (Either String (LImage JP.PixelRGB8))
@@ -37,28 +33,35 @@ readImage fp = do
     case eimg of
         Left err -> return (Left $ "Could not read image: " ++ err)
         Right dimg ->
-            return (Right (LImage width height pixels))
+            return (Right (LImage width height pixelAt))
             where img = JP.convertRGB8 dimg
                   width = JP.imageWidth img
                   height = JP.imageHeight img
-                  pixels = fmap
-                            (\i ->
-                                let x = i `rem` width
-                                    y = i `div` width
-                                in JP.pixelAt img x y)
-                            (V.enumFromN 0 (width * height))
+                  pixelAt = JP.pixelAt img
 
 
 writeImageAsPng :: FilePath -> LImage JP.PixelRGB8 -> IO ()
-writeImageAsPng filePath img = JP.writePng filePath $ JP.generateImage (pixelAt img) (width img) (height img)
+writeImageAsPng filePath img = JP.writePng filePath $
+    JP.generateImage (pixelAt img) (width img) (height img)
 
 
-maxFilter :: (Ord p, RealFrac r) => LImage p -> r -> LImage p
-maxFilter img r = unfocus $ extend (`maxPixel` r) (focus img)
+clearRegion :: LImage JP.PixelRGB8 -> (Int -> Int -> Bool) -> LImage JP.PixelRGB8
+clearRegion img@(LImage w h pf) pred = LImage w h cpf
+    where
+        setBlack :: JP.PixelBaseComponent JP.PixelRGB8 -> JP.PixelBaseComponent JP.PixelRGB8
+        setBlack _ = 0
+        cpf = \x y -> if pred x y then
+                            JP.colorMap setBlack (pf x y)
+                      else pf x y
+
+maxFilter :: (Ord p, RealFrac r) => r -> LImage p -> LImage p
+maxFilter r img@(LImage w h pf) = LImage w h mpf
+    where
+        mpf = \x y -> maxPixel r (FocusedImage img x y)
 
 
-maxPixel :: (Ord p, RealFrac r) => FocusedImage p -> r -> p
-maxPixel pixel r = max [
+maxPixel :: (Ord p, RealFrac r) => r -> FocusedImage p -> p
+maxPixel r pixel = max [
     extract p
         | (dx, dy) <- expandAllCoords $ circleRadii r
         , p <- maybeToList (neighbour dx dy pixel)]
@@ -67,7 +70,6 @@ maxPixel pixel r = max [
 
 
 type RelCoord = (Int, Int)
-
 
 circleRadii :: RealFrac r => r -> [RelCoord]
 circleRadii r =
@@ -122,10 +124,7 @@ instance Comonad FocusedImage where
     extract (FocusedImage img x y) = pixelAt img x y
 
     extend f (FocusedImage img@(LImage w h _) x y) = FocusedImage
-        (LImage w h $ V.generate (w * h) $ \i ->
-            let (y', x') = i `divMod` w
-            in f (FocusedImage img x' y'))
-        x y
+        (LImage w h $ \x' y' -> f (FocusedImage img x' y')) x y
 
 
 focus :: LImage p -> FocusedImage p
@@ -147,4 +146,7 @@ neighbour dx dy (FocusedImage img x y)
     outOfBounds =
         x' < 0 || x' >= width img ||
         y' < 0 || y' >= height img
+
+horizontalMirror :: LImage p -> LImage p
+horizontalMirror img@(LImage w h pf) = LImage w h (\x y -> pf (w - x - 1) y)
 

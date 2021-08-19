@@ -3,14 +3,10 @@ module Main where
 import Args (parseCmdArgs, masksPaths)
 import Image ( LImage
               , readImage
-              , pixelAt
               , writeImageAsPng
-              , width
-              , height
-              , pixels
-              , maxFilter)
-import Text.Printf (FieldFormat(fmtWidth))
-import qualified Data.Vector         as V
+              , maxFilter
+              , horizontalMirror
+              , clearRegion)
 
 main :: IO ()
 main = do
@@ -20,14 +16,8 @@ main = do
     case eimg of
         Left err -> putStrLn err
         Right img ->
-            -- print (
-            --     show (length $ pixels img) 
-            --  ++ " "
-            --  ++ show (pixels img V.! 0)
-            --  ++ " "
-            --  ++ show (pixels img V.! 684859)
-            -- )
-            writeImageAsPng "tt.png" fimg
+            writeImageAsPng "tt.png" filteredImg
             where
-                fimg = maxFilter img 20
+                filteredImg = maxFilter 10 (clearRegion img isLabelRegion)
+                isLabelRegion = \x y -> x < 330 && y < 100 || x >= 950 && y < 85
     return ()
