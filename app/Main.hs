@@ -1,12 +1,13 @@
 module Main where
 
 import Args (parseCmdArgs, masksPaths)
-import Image ( LImage
+import Image ( Image
               , readImage
               , writeImageAsPng
-              , maxFilter
               , horizontalMirror
-              , clearRegion)
+              , clearRegion
+              , maxFilter
+              )
 
 main :: IO ()
 main = do
@@ -16,8 +17,8 @@ main = do
     case eimg of
         Left err -> putStrLn err
         Right img ->
-            writeImageAsPng "tt.png" filteredImg
+            writeImageAsPng "tt.png" fimg
             where
-                filteredImg = maxFilter 10 (clearRegion img isLabelRegion)
+                fimg = maxFilter 20 $ clearRegion img isLabelRegion
                 isLabelRegion = \x y -> x < 330 && y < 100 || x >= 950 && y < 85
     return ()

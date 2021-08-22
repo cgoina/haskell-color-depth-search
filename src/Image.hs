@@ -1,13 +1,12 @@
-{-# LANGUAGE MultiWayIf #-}
-
+{-# LANGUAGE FlexibleInstances #-}
 
 module Image (
-    LImage(..)
-  , clearRegion
-  , horizontalMirror
-  , maxFilter
+    Image(..)
   , readImage
   , writeImageAsPng
+  , horizontalMirror
+  , clearRegion
+  , maxFilter
 ) where
 
 
@@ -15,54 +14,80 @@ import Control.Comonad ( Comonad(extract, extend), Functor )
 import Data.Maybe (maybeToList)
 import qualified Codec.Picture       as JP
 import qualified Data.Vector         as V
+import qualified Data.Massiv.Array   as A
+import Codec.Picture (Pixel(PixelBaseComponent))
 
-data LImage p = LImage {
-    width :: !Int
-  , height :: !Int
-  , pixelAt :: Int -> Int -> p
+data Image p = Image {
+    -- | image dimensions
+    dims :: (Int, Int)
+    -- | pixel getter
+  , pixel :: Int -> Int -> p
 }
 
+{-# inline width #-}
+width :: Image p -> Int
+width img@(Image sz@(w, _) _) = w
 
-instance Functor LImage where
-    fmap f (LImage w h ps) = LImage w h (\x y -> f $ ps x y)
+
+{-# inline height #-}
+height :: Image p -> Int
+height img@(Image sz@(_, h) _) = h
 
 
-readImage :: FilePath -> IO (Either String (LImage JP.PixelRGB8))
+instance Functor Image where
+    fmap f img@(Image sz pf) = Image sz (\x y -> f $ pf x y)
+
+
+instance Applicative Image where
+    pure p = Image (1, 1) (\x y -> p)
+    ffimg@(Image szff pff) <*> faimg@(Image szfa pfa)
+        | szff /= szfa = error "Cannot apply images of unequal dimensions."
+        | otherwise = Image szfa (\x y -> pff x y (pfa x y))
+
+
+readImage :: FilePath -> IO (Either String (Image JP.PixelRGB8))
 readImage fp = do
     eimg <- JP.readImage fp
     case eimg of
         Left err -> return (Left $ "Could not read image: " ++ err)
         Right dimg ->
-            return (Right (LImage width height pixelAt))
+            return (Right (Image (w, h) pixelAt))
             where img = JP.convertRGB8 dimg
-                  width = JP.imageWidth img
-                  height = JP.imageHeight img
+                  (w, h) = (JP.imageWidth img, JP.imageHeight img)
                   pixelAt = JP.pixelAt img
 
 
-writeImageAsPng :: FilePath -> LImage JP.PixelRGB8 -> IO ()
-writeImageAsPng filePath img = JP.writePng filePath $
-    JP.generateImage (pixelAt img) (width img) (height img)
+writeImageAsPng :: FilePath -> Image JP.PixelRGB8 -> IO ()
+writeImageAsPng filePath img@(Image _ pf) = JP.writePng filePath $ JP.generateImage pf (width img) (height img)
 
 
-clearRegion :: LImage JP.PixelRGB8 -> (Int -> Int -> Bool) -> LImage JP.PixelRGB8
-clearRegion img@(LImage w h pf) pred = LImage w h cpf
+horizontalMirror :: Image p -> Image p
+horizontalMirror img@(Image sz pf) = Image sz (\x y -> pf (width img - x - 1) y)
+
+
+class (JP.Pixel p) => BlackPixel p where
+    clear :: p -> p
+
+
+instance BlackPixel JP.PixelRGB8 where
+    clear p = JP.colorMap (const (0 :: JP.Pixel8)) p
+
+
+clearRegion :: (BlackPixel p) => Image p -> (Int -> Int -> Bool) -> Image p
+clearRegion img@(Image sz pf) pred = Image sz cpf
     where
-        setBlack :: JP.PixelBaseComponent JP.PixelRGB8 -> JP.PixelBaseComponent JP.PixelRGB8
-        setBlack _ = 0
-        cpf = \x y -> if pred x y then
-                            JP.colorMap setBlack (pf x y)
+        cpf = \x y -> if pred x y then clear $ pf x y
                       else pf x y
 
-maxFilter :: (Ord p, RealFrac r) => r -> LImage p -> LImage p
-maxFilter r img@(LImage w h pf) = LImage w h mpf
+maxFilter :: (Ord p, RealFrac r) => r -> Image p -> Image p
+maxFilter r img@(Image sz pf) = Image sz mpf
     where
         mpf = \x y -> maxPixel r (FocusedImage img x y)
 
 
 maxPixel :: (Ord p, RealFrac r) => r -> FocusedImage p -> p
 maxPixel r pixel = max [
-    extract p
+    getFocus p
         | (dx, dy) <- expandAllCoords $ circleRadii r
         , p <- maybeToList (neighbour dx dy pixel)]
     where
@@ -70,6 +95,7 @@ maxPixel r pixel = max [
 
 
 type RelCoord = (Int, Int)
+
 
 circleRadii :: RealFrac r => r -> [RelCoord]
 circleRadii r =
@@ -109,34 +135,7 @@ expandAllCoords :: [RelCoord] -> [RelCoord]
 expandAllCoords = concatMap expandCoords
 
 
-data FocusedImage p = FocusedImage {
-    img :: LImage p
-  , currX :: !Int
-  , currY :: !Int
-}
-
-
-instance Functor FocusedImage where
-    fmap f (FocusedImage img x y) = FocusedImage (fmap f img) x y
-
-
-instance Comonad FocusedImage where
-    extract (FocusedImage img x y) = pixelAt img x y
-
-    extend f (FocusedImage img@(LImage w h _) x y) = FocusedImage
-        (LImage w h $ \x' y' -> f (FocusedImage img x' y')) x y
-
-
-focus :: LImage p -> FocusedImage p
-focus img
-    | width img > 0 && height img > 0 = FocusedImage img 0 0
-    | otherwise = error "Cannot focus on an empty image"
-
-
-unfocus :: FocusedImage p -> LImage p
-unfocus fimg@(FocusedImage img _ _) = img
-
-
+neighbour :: Int -> Int -> FocusedImage p -> Maybe (FocusedImage p)
 neighbour dx dy (FocusedImage img x y)
     | outOfBounds = Nothing
     | otherwise   = Just (FocusedImage img x' y')
@@ -147,6 +146,28 @@ neighbour dx dy (FocusedImage img x y)
         x' < 0 || x' >= width img ||
         y' < 0 || y' >= height img
 
-horizontalMirror :: LImage p -> LImage p
-horizontalMirror img@(LImage w h pf) = LImage w h (\x y -> pf (w - x - 1) y)
+
+data FocusedImage p = FocusedImage {
+    img :: Image p
+  , currX :: Int
+  , currY :: Int
+}
+
+
+instance Functor FocusedImage where
+    fmap f (FocusedImage img x y) = FocusedImage (fmap f img) x y
+
+
+focus :: Image p -> FocusedImage p
+focus img
+    | width img > 0 && height img > 0 = FocusedImage img 0 0
+    | otherwise = error "Cannot focus on an empty image"
+
+
+getFocus :: FocusedImage p -> p
+getFocus fimg@(FocusedImage img@(Image _ pf) x y) = pf x y
+
+
+
+
 

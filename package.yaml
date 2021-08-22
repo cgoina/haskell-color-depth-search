@@ -30,6 +30,7 @@ library:
     - JuicyPixels >= 3.3.5
     - comonad >= 5.0.8
     - vector >= 0.12.3.0
+    - massiv >= 0.6.1.0
 
 executables:
   cds-exe:
