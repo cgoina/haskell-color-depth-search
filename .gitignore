@@ -1,4 +1,8 @@
 .stack-work/
+.vscode
 local
+dist
+dist-*
 *~
 *.bak
+*.prof

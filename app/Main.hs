@@ -1,6 +1,6 @@
 module Main where
 
-import Args (parseCmdArgs, masksPaths)
+import Args (parseCmdArgs, masksPaths, maxFilterRadius)
 import Image ( Image
               , readImage
               , writeImageAsPng
@@ -19,6 +19,6 @@ main = do
         Right img ->
             writeImageAsPng "tt.png" fimg
             where
-                fimg = maxFilter 20 $ clearRegion img isLabelRegion
+                fimg = maxFilter (maxFilterRadius cdsOpts) $ clearRegion img isLabelRegion
                 isLabelRegion = \x y -> x < 330 && y < 100 || x >= 950 && y < 85
     return ()

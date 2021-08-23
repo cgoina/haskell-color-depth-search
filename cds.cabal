@@ -34,7 +34,6 @@ library
   build-depends:
       JuicyPixels >=3.3.5
     , base >=4.7 && <5
-    , comonad >=5.0.8
     , massiv >=0.6.1.0
     , optparse-applicative >=0.16
     , vector >=0.12.3.0

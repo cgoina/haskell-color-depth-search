@@ -2,14 +2,30 @@ module Args (
     CDSArgs
   , parseCmdArgs
   , masksPaths
+  , maxFilterRadius
 ) where
 
 import Options.Applicative
+    ( auto,
+      fullDesc,
+      header,
+      help,
+      info,
+      infoOption,
+      long,
+      option,
+      progDesc,
+      strOption,
+      value,
+      execParser,
+      helper,
+      Parser )
 import Data.Semigroup ((<>))
 
 data CDSArgs = CDSArgs { 
     masksPaths :: FilePath
   , dataPaths :: FilePath
+  , maxFilterRadius :: Float
   , maskThreshold :: Float
   , dataThreshold :: Float
 } deriving (Show)
@@ -22,6 +38,10 @@ cdsArgs = CDSArgs
    <*> strOption
        ( long "images"
        <> help "Searched Image Inputs" )
+   <*> option auto
+       ( long "maxFilterRadius"
+       <> value 5
+       <> help "Mask threshold" )
    <*> option auto
        ( long "maskThreshold"
        <> value 0.01
@@ -44,3 +64,4 @@ parseCmdArgs = execParser cdsArgsInfo
         versionOption = infoOption "0.1" (
                           long "version" 
                        <> help "Show version")
+

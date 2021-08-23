@@ -20,15 +20,14 @@ extra-source-files:
 description:         Please see the README on GitHub at <https://github.com/githubuser/cds#readme>
 
 dependencies:
-- base >= 4.7 && < 5
-- JuicyPixels >= 3.3.5
+  - base >= 4.7 && < 5
+  - JuicyPixels >= 3.3.5
 
 library:
   source-dirs: src
   dependencies:
     - optparse-applicative >= 0.16
     - JuicyPixels >= 3.3.5
-    - comonad >= 5.0.8
     - vector >= 0.12.3.0
     - massiv >= 0.6.1.0
 
@@ -37,19 +36,19 @@ executables:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
     dependencies:
-    - cds
+      - cds
 
 tests:
   cds-test:
     main:                Spec.hs
     source-dirs:         test
     ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
     dependencies:
-    - cds
+      - cds
