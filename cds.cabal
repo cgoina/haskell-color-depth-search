@@ -26,6 +26,8 @@ source-repository head
 library
   exposed-modules:
       Args
+      ArrayImage
+      BoxedImage
       Image
   other-modules:
       Paths_cds
@@ -39,9 +41,10 @@ library
     , vector >=0.12.3.0
   default-language: Haskell2010
 
-executable cds-exe
-  main-is: Main.hs
+executable cds-array
+  main-is: MainArray.hs
   other-modules:
+      MainBoxed
       Paths_cds
   hs-source-dirs:
       app

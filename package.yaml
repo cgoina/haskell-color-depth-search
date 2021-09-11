@@ -32,8 +32,8 @@ library:
     - massiv >= 0.6.1.0
 
 executables:
-  cds-exe:
-    main:                Main.hs
+  cds-array:
+    main:                MainArray.hs
     source-dirs:         app
     ghc-options:
       - -threaded
@@ -41,6 +41,7 @@ executables:
       - -with-rtsopts=-N
     dependencies:
       - cds
+
 
 tests:
   cds-test:
