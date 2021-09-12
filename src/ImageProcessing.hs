@@ -1,6 +1,6 @@
 module ImageProcessing where
 
-import Image ( Image(pixelAt, width, height, makeImage)
+import Image ( Image(pixelAt, getAt, width, height, makeImage)
              , Pixel(clear)
              )
 
@@ -36,15 +36,16 @@ maxFilter r img = makeImage w h pf
         h = height img
         filterCoord = neighborCoords r
         pf = \x y ->
-            let filterPixels = map (uncurry (pixelAt img)) (absNeighborCoords (x, y) (w, h) filterCoord)
+            let filterPixels = map (getAt img) (absNeighborIndexes (x, y) (w, h) filterCoord)
             in foldr1 (\x' y' -> if x' >= y' then x' else y') filterPixels
 
 
-absNeighborCoords :: Coord -> Dims -> [Coord] -> [Coord]
-absNeighborCoords p sz@(w, h) coords = filter checkBoundaries (map (p +) coords)
+absNeighborIndexes :: Coord -> Dims -> [Coord] -> [Int]
+absNeighborIndexes p sz@(w, h) coords = map toIndex (filter checkBoundaries (map (p +) coords))
     where
         checkBoundaries :: Coord -> Bool
-        checkBoundaries (x,y) = x >= 0 && x < w && y >= 0 && y < h
+        checkBoundaries (x, y) = x >= 0 && x < w && y >= 0 && y < h
+        toIndex (x, y) = y * w + x
 
 
 neighborCoords :: (RealFrac r) => r -> [Coord]
