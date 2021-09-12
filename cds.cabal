@@ -28,6 +28,7 @@ library
       Args
       ArrayImage
       BoxedImage
+      ColorDepthSearch
       Image
       ImageIO
       ImageProcessing

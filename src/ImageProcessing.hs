@@ -10,10 +10,9 @@ clearRegion img regionCond = makeImage (width img) (height img) (\x y -> if regi
 
 
 horizontalMirror :: Image s p => s p -> s p
-horizontalMirror img = makeImage w h (\x y -> pixelAt img (w - x - 1) y)
+horizontalMirror img = makeImage w (height img) (\x y -> pixelAt img (w - x - 1) y)
     where
         w = width img
-        h = height img
 
 
 type Coord = (Int, Int)
@@ -32,12 +31,11 @@ instance (Num a, Num b) => Num (a, b) where
 maxFilter :: (Ord p, RealFrac r, Image s p) => r -> s p -> s p
 maxFilter r img = makeImage w h pf
     where
-        w = width img
-        h = height img
-        filterCoord = neighborCoords r
+        (w, h) = (width img, height img)
+        filterCoords = neighborCoords r
         pf = \x y ->
-            let filterPixels = map (getAt img) (absNeighborIndexes (x, y) (w, h) filterCoord)
-            in foldr1 (\x' y' -> if x' >= y' then x' else y') filterPixels
+            let filterPixels = map (getAt img) (absNeighborIndexes (x, y) (w, h) filterCoords)
+            in maximum filterPixels
 
 
 absNeighborIndexes :: Coord -> Dims -> [Coord] -> [Int]
