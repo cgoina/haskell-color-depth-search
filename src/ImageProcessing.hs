@@ -15,6 +15,21 @@ horizontalMirror img = makeImage w (height img) (\x y -> pixelAt img (w - x - 1)
         w = width img
 
 
+shift :: Image s p => s p -> Int -> Int -> s p
+shift img dx dy = makeImage w h pf
+    where
+        w = width img
+        h = height img
+        pf = \x y ->
+            let shiftedX = x + dx
+                shiftedY = y + dy
+            in
+                if shiftedX >= 0 && shiftedX < w && shiftedY >= 0 && shiftedY < h then
+                    pixelAt img shiftedX shiftedY
+                else
+                    clear $ pixelAt img x y
+
+
 type Coord = (Int, Int)
 
 type Dims = (Int, Int)

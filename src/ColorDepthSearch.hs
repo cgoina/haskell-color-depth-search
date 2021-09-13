@@ -5,18 +5,50 @@ module ColorDepthSearch where
 
 import Data.Word ( Word8 )
 
-import Image ( Image )
+import Image( Image(getAt)
+            , Pixel(rgb)
+            , regionPixelCoord
+            , aboveThreshold )
+import Codec.Picture.Types (ColorConvertible)
 
-data ColorDepthQuery s p t z = ColorDepthQuery {
-    queryImage :: Image s p => s p -- query image
-  , queryThreshold :: Num t => t -- target threshold
-  , targetThreshold :: Num t => t -- target threshold
+
+data ColorDepthQuery t z s p = ColorDepthQuery {
+    queryThreshold :: (Ord t, Num t) => t
+  , mirror :: Bool
+  , targetThreshold :: (Ord t, Num t) => t -- target threshold
   , zTolerance :: RealFrac z => z -- pixel color fluctuation
+  , queryImage :: Image s p => s p -- query image
 }
 
 
+calculateScore :: (Num t, Ord t, Image s p, Image s' p') => ColorDepthQuery t Double s p -> s' p' -> Int
+calculateScore cdsQuery target =
+    let query = queryImage cdsQuery
+        threshold = targetThreshold cdsQuery
+        pixColorFluctuation = zTolerance cdsQuery
+        queryPixels = regionPixelCoord query (`aboveThreshold` queryThreshold cdsQuery)
+
+        getPixels :: (Image s p, Image s' p') => s p -> s' p' -> Int -> (p, p')
+        getPixels i1 i2 coord = 
+            let p1 = getAt i1 coord
+                p2 = getAt i2 coord
+            in (p1, p2)
+
+        checkTargetPixel :: (Pixel p, Pixel p') => (p, p') -> Bool
+        checkTargetPixel (_, tp) = aboveThreshold tp threshold
+
+        pixelComponents :: (Pixel p, Pixel p') => (p, p') -> ((Word8, Word8, Word8), (Word8, Word8, Word8))
+        pixelComponents (p1, p2) = (rgb p1, rgb p2)
+
+        pixelsToCompare = filter checkTargetPixel $ map (getPixels query target) queryPixels
+        rgbsToCompare = map pixelComponents pixelsToCompare
+        pxGaps = map (uncurry pixelGap) rgbsToCompare
+
+    in length $ filter (pixColorFluctuation >=) pxGaps
+
+
 pixelGap :: (Word8, Word8, Word8) -> (Word8, Word8, Word8) -> Double
-pixelGap (red1, green1, blue1) (red2, green2, blue2) = pxGap 
+pixelGap (red1, green1, blue1) (red2, green2, blue2) = pxGap
     where
         r1 = fromIntegral red1
         g1 = fromIntegral green1
@@ -24,7 +56,7 @@ pixelGap (red1, green1, blue1) (red2, green2, blue2) = pxGap
         r2 = fromIntegral red2
         g2 = fromIntegral green2
         b2 = fromIntegral  blue2
-        zeroOrRatio a b = if a /= 0 && b /= 0 
+        zeroOrRatio a b = if a /= 0 && b /= 0
                             then a / b
                             else 0
         assignComps a b c = if

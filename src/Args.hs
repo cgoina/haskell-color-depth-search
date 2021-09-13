@@ -2,7 +2,12 @@ module Args (
     CDSArgs
   , parseCmdArgs
   , masksPaths
+  , dataPaths
+  , noMaskMirroring
+  , maskThreshold
+  , dataThreshold
   , maxFilterRadius
+  , pixColorFluctuation
 ) where
 
 import Options.Applicative
@@ -19,16 +24,20 @@ import Options.Applicative
       value,
       execParser,
       helper,
-      Parser )
+      Parser, switch )
 import Data.Semigroup ((<>))
 
-data CDSArgs = CDSArgs { 
+
+data CDSArgs = CDSArgs {
     masksPaths :: FilePath
   , dataPaths :: FilePath
   , maxFilterRadius :: Float
-  , maskThreshold :: Float
-  , dataThreshold :: Float
+  , noMaskMirroring :: !Bool
+  , maskThreshold :: Double
+  , dataThreshold :: Double
+  , pixColorFluctuation :: Double
 } deriving (Show)
+
 
 cdsArgs :: Parser CDSArgs
 cdsArgs = CDSArgs 
@@ -42,6 +51,9 @@ cdsArgs = CDSArgs
        ( long "maxFilterRadius"
        <> value 5
        <> help "Mask threshold" )
+   <*> switch 
+       ( long "noMaskMirroring"
+       <> help "If set there's no mask mirroring")
    <*> option auto
        ( long "maskThreshold"
        <> value 0.01
@@ -50,6 +62,11 @@ cdsArgs = CDSArgs
        ( long "dataThreshold"
        <> value 0.01
        <> help "Mask threshold" )
+   <*> option auto
+        ( long "pixColorFluctuation"
+        <> value 2.0
+        <> help "Pixel color fluctuation which is equivalent to z fluctuation")
+
 
 parseCmdArgs :: IO CDSArgs
 parseCmdArgs = execParser cdsArgsInfo
