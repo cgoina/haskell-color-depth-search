@@ -9,19 +9,36 @@ import Image( Image(getAt)
             , Pixel(rgb)
             , regionPixelCoord
             , aboveThreshold )
-import Codec.Picture.Types (ColorConvertible)
+import ImageProcessing ( horizontalMirror )
 
 
 data ColorDepthQuery t z s p = ColorDepthQuery {
     queryThreshold :: (Ord t, Num t) => t
-  , mirror :: Bool
   , targetThreshold :: (Ord t, Num t) => t -- target threshold
   , zTolerance :: RealFrac z => z -- pixel color fluctuation
   , queryImage :: Image s p => s p -- query image
 }
 
 
-calculateScore :: (Num t, Ord t, Image s p) => ColorDepthQuery t Double s p -> s p -> Int
+createAllColorDepthQueries :: (Image s p, Num t, Ord t, RealFrac z) => s p -> t -> t -> z -> Bool -> [ColorDepthQuery t z s p]
+createAllColorDepthQueries qImg qth tth pxFluctuation mirrorFlag =
+    let cdsQuery = ColorDepthQuery qth tth pxFluctuation qImg
+    in
+        if mirrorFlag then
+            mapCDSQuery horizontalMirror cdsQuery : [ cdsQuery ]
+        else
+            [ cdsQuery ]
+
+
+mapCDSQuery :: (Image s p, Image s' p') => (s p -> s' p') -> ColorDepthQuery t z s p -> ColorDepthQuery t z s' p'
+mapCDSQuery f q@(ColorDepthQuery qth tth pxFluctuation qImg) = ColorDepthQuery qth tth pxFluctuation (f qImg)
+
+
+calculateBestScore :: (Num t, Ord t, RealFrac z, Image s p) => [ColorDepthQuery t z s p] -> s p -> Int
+calculateBestScore queries target = maximum $ map (`calculateScore` target) queries
+
+
+calculateScore :: (Num t, Ord t, RealFrac z, Image s p) => ColorDepthQuery t z s p -> s p -> Int
 calculateScore cdsQuery target =
     let query = queryImage cdsQuery
         threshold = targetThreshold cdsQuery
@@ -29,7 +46,7 @@ calculateScore cdsQuery target =
         queryPixels = regionPixelCoord query (`aboveThreshold` queryThreshold cdsQuery)
 
         getPixels :: (Image s p) => s p -> s p -> Int -> (p, p)
-        getPixels i1 i2 coord = 
+        getPixels i1 i2 coord =
             let p1 = getAt i1 coord
                 p2 = getAt i2 coord
             in (p1, p2)
@@ -47,7 +64,7 @@ calculateScore cdsQuery target =
     in length $ filter (pixColorFluctuation >=) pxGaps
 
 
-pixelGap :: (Word8, Word8, Word8) -> (Word8, Word8, Word8) -> Double
+pixelGap :: RealFrac g => (Word8, Word8, Word8) -> (Word8, Word8, Word8) -> g
 pixelGap (red1, green1, blue1) (red2, green2, blue2) = pxGap
     where
         r1 = fromIntegral red1

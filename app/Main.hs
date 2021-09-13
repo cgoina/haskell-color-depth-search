@@ -10,7 +10,8 @@ import Args ( parseCmdArgs
 import BoxedImage ( BoxedImage )
 import ImageProcessing (clearRegion)
 import ColorDepthSearch ( ColorDepthQuery(..)
-                        , calculateScore)
+                        , createAllColorDepthQueries
+                        , calculateBestScore)
 
 import qualified ImageIO as IIO(readImage)
 
@@ -35,11 +36,11 @@ readImageFromFile :: FilePath -> IO (Either String (BoxedImage Int))
 readImageFromFile = IIO.readImage
 
 
-cds query queryThreshold mirror target targetThreshold zTolerance =
+cds :: BoxedImage Int -> Double -> Bool -> BoxedImage Int -> Double -> Double -> Int
+cds query queryThreshold mirror target targetThreshold pxFluctuation =
     let isLabelRegion = \x y -> x < 330 && y < 100 || x >= 950 && y < 85
         unlabeledQuery = clearRegion query isLabelRegion
         unlabeledTarget = clearRegion target isLabelRegion
-        cdsQuery = ColorDepthQuery queryThreshold mirror targetThreshold zTolerance unlabeledQuery
-    in calculateScore cdsQuery unlabeledTarget
-
+        cdsQueries = createAllColorDepthQueries unlabeledQuery queryThreshold targetThreshold pxFluctuation mirror
+    in calculateBestScore cdsQueries unlabeledTarget
 
