@@ -21,23 +21,23 @@ data ColorDepthQuery t z s p = ColorDepthQuery {
 }
 
 
-calculateScore :: (Num t, Ord t, Image s p, Image s' p') => ColorDepthQuery t Double s p -> s' p' -> Int
+calculateScore :: (Num t, Ord t, Image s p) => ColorDepthQuery t Double s p -> s p -> Int
 calculateScore cdsQuery target =
     let query = queryImage cdsQuery
         threshold = targetThreshold cdsQuery
         pixColorFluctuation = zTolerance cdsQuery
         queryPixels = regionPixelCoord query (`aboveThreshold` queryThreshold cdsQuery)
 
-        getPixels :: (Image s p, Image s' p') => s p -> s' p' -> Int -> (p, p')
+        getPixels :: (Image s p) => s p -> s p -> Int -> (p, p)
         getPixels i1 i2 coord = 
             let p1 = getAt i1 coord
                 p2 = getAt i2 coord
             in (p1, p2)
 
-        checkTargetPixel :: (Pixel p, Pixel p') => (p, p') -> Bool
+        checkTargetPixel :: (Pixel p) => (p, p) -> Bool
         checkTargetPixel (_, tp) = aboveThreshold tp threshold
 
-        pixelComponents :: (Pixel p, Pixel p') => (p, p') -> ((Word8, Word8, Word8), (Word8, Word8, Word8))
+        pixelComponents :: (Pixel p) => (p, p) -> ((Word8, Word8, Word8), (Word8, Word8, Word8))
         pixelComponents (p1, p2) = (rgb p1, rgb p2)
 
         pixelsToCompare = filter checkTargetPixel $ map (getPixels query target) queryPixels
