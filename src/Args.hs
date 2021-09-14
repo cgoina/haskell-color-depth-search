@@ -11,28 +11,34 @@ module Args (
 ) where
 
 import Options.Applicative
-    ( auto,
-      fullDesc,
-      header,
-      help,
-      info,
-      infoOption,
-      long,
-      option,
-      progDesc,
-      strOption,
-      value,
-      execParser,
-      helper,
-      Parser, switch )
+    ( auto
+      , fullDesc
+      , header
+      , help
+      , info
+      , infoOption
+      , long
+      , option
+      , progDesc
+      , strOption
+      , value
+      , switch
+      , flag
+      , execParser
+      , helper
+      , (<|>)
+      , Parser )
 import Data.Semigroup ((<>))
 
+data ShiftOptions = None | One | Two
+                    deriving Show
 
 data CDSArgs = CDSArgs {
     masksPaths :: FilePath
   , dataPaths :: FilePath
   , maxFilterRadius :: Float
   , noMaskMirroring :: !Bool
+  , shiftOption :: ShiftOptions
   , maskThreshold :: Double
   , dataThreshold :: Double
   , pixColorFluctuation :: Double
@@ -54,6 +60,8 @@ cdsArgs = CDSArgs
    <*> switch 
        ( long "noMaskMirroring"
        <> help "If set there's no mask mirroring")
+   <*> ( flag None One ( long "oneXYShift" <> help "xy shift = 1") 
+      <|> flag None Two ( long "twoXYShift" <> help "xy shift = 2") )
    <*> option auto
        ( long "maskThreshold"
        <> value 0.01
