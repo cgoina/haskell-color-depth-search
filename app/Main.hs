@@ -4,13 +4,15 @@ import Args ( parseCmdArgs
             , masksPaths
             , dataPaths
             , noMaskMirroring
+            , shiftOption
             , maskThreshold
             , dataThreshold
             , pixColorFluctuation)
 import BoxedImage ( BoxedImage )
 import ImageProcessing (clearRegion)
 import ColorDepthSearch ( ColorDepthQuery(..)
-                        , createAllColorDepthQueries
+                        , ShiftOptions
+                        , createAllColorDepthMasks
                         , calculateBestScore)
 
 import qualified ImageIO as IIO(readImage)
@@ -27,7 +29,7 @@ main = do
             case timg of
                 Left err -> putStrLn err
                 Right target ->
-                    let score = cds query (maskThreshold cdsOpts) (not (noMaskMirroring cdsOpts)) target (dataThreshold cdsOpts) (pixColorFluctuation cdsOpts)
+                    let score = cds query (maskThreshold cdsOpts) (not (noMaskMirroring cdsOpts)) (shiftOption cdsOpts) target (dataThreshold cdsOpts) (pixColorFluctuation cdsOpts)
                     in print score
     return ()
 
@@ -36,11 +38,10 @@ readImageFromFile :: FilePath -> IO (Either String (BoxedImage Int))
 readImageFromFile = IIO.readImage
 
 
-cds :: BoxedImage Int -> Double -> Bool -> BoxedImage Int -> Double -> Double -> Int
-cds query queryThreshold mirror target targetThreshold pxFluctuation =
+cds :: BoxedImage Int -> Double -> Bool -> ShiftOptions -> BoxedImage Int -> Double -> Double -> Int
+cds query queryThreshold mirror xyShift target targetThreshold pxFluctuation =
     let isLabelRegion = \x y -> x < 330 && y < 100 || x >= 950 && y < 85
         unlabeledQuery = clearRegion query isLabelRegion
         unlabeledTarget = clearRegion target isLabelRegion
-        cdsQueries = createAllColorDepthQueries unlabeledQuery queryThreshold targetThreshold pxFluctuation mirror
-    in calculateBestScore cdsQueries unlabeledTarget
-
+        cdsMasks = createAllColorDepthMasks unlabeledQuery queryThreshold mirror xyShift
+    in calculateBestScore cdsMasks unlabeledTarget targetThreshold pxFluctuation

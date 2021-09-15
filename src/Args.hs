@@ -4,6 +4,7 @@ module Args (
   , masksPaths
   , dataPaths
   , noMaskMirroring
+  , shiftOption
   , maskThreshold
   , dataThreshold
   , maxFilterRadius
@@ -24,14 +25,15 @@ import Options.Applicative
       , value
       , switch
       , flag
+      , flag'
       , execParser
       , helper
       , (<|>)
       , Parser )
 import Data.Semigroup ((<>))
 
-data ShiftOptions = None | One | Two
-                    deriving Show
+import ColorDepthSearch ( ShiftOptions(..) )
+
 
 data CDSArgs = CDSArgs {
     masksPaths :: FilePath
@@ -60,8 +62,8 @@ cdsArgs = CDSArgs
    <*> switch 
        ( long "noMaskMirroring"
        <> help "If set there's no mask mirroring")
-   <*> ( flag None One ( long "oneXYShift" <> help "xy shift = 1") 
-      <|> flag None Two ( long "twoXYShift" <> help "xy shift = 2") )
+   <*> ( flag None One ( long "oneXYShift" <> help "xy shift = 0")
+      <|> flag'  Two ( long "twoXYShift" <> help "xy shift = 2") )
    <*> option auto
        ( long "maskThreshold"
        <> value 0.01

@@ -30,20 +30,36 @@ class (Functor s, Pixel p) => Image s p where
     height :: s p -> Int
 
     pixelAt :: s p -> Int -> Int -> p
-    pixelAt img x y = let i = y * width img + x
-                      in getAt img i
+    pixelAt img x y = getAt img (fromXyToIndex img (x,y))
 
     getAt :: s p -> Int -> p
-    getAt img i = let (y, x) = i `divMod` width img
-                  in pixelAt img x y
+    getAt img i = uncurry (pixelAt img) (fromIndexToXY img i)
+
+    size :: s p -> Int
+    size img = width img * height img
+
+    fromXyToIndex :: s p -> (Int,Int) -> Int
+    fromXyToIndex img (x, y) = y * width img + x
+
+    fromIndexToXY :: s p -> Int -> (Int,Int)
+    fromIndexToXY img i = let (y,x) = i `divMod` width img
+                          in (x,y)
 
     makeImage :: Int -> Int -> (Int -> Int -> p) -> s p
 
 
-size :: Image s p => s p -> Int
-size img = width img * height img
-
-
-regionPixelCoord :: Image s b => s b -> (b -> Bool) -> [Int]
-regionPixelCoord img cond = map fst (filter (cond . snd) [(i, getAt img i) | i <- [0..size img - 1]])
+-- return pixel coordinates (indexes) and values of the pixels that satisfy the predicate
+regionPixelsAndCoords :: Image s p => s p -> ((Int,Int) -> (Int,Int)) -> (p -> Bool) -> [(Int, p)]
+regionPixelsAndCoords img coordTransform cond =
+    let w = width img
+        h = height img
+        outOfBounds :: (Int,Int) -> Bool -- check if coordinates are out of bounds
+        outOfBounds (x, y) = x < 0 || y < 0 || x >= w || y >= h
+        pis = map (fromXyToIndex img) $ 
+              filter 
+                (not . outOfBounds)  
+                [coordTransform (x, y) | y <- [0 .. h - 1], x <- [0 .. w - 1]]
+        pcs = map (getAt img) pis
+    in
+        filter (cond . snd) (zip pis pcs)
 

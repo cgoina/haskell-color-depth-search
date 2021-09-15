@@ -5,11 +5,16 @@ module ColorDepthSearch where
 
 import Data.Word ( Word8 )
 
-import Image( Image(getAt)
+import Image( Image( getAt
+                   , width)
             , Pixel(rgb)
-            , regionPixelCoord
+            , regionPixelsAndCoords
             , aboveThreshold )
 import ImageProcessing ( horizontalMirror )
+
+
+data ShiftOptions = None | One | Two
+                    deriving Show
 
 
 data ColorDepthQuery t z s p = ColorDepthQuery {
@@ -20,53 +25,52 @@ data ColorDepthQuery t z s p = ColorDepthQuery {
 }
 
 
-createAllColorDepthQueries :: (Image s p, Num t, Ord t, RealFrac z) => s p -> t -> t -> z -> Bool -> [ColorDepthQuery t z s p]
-createAllColorDepthQueries qImg qth tth pxFluctuation mirrorFlag =
-    let cdsQuery = ColorDepthQuery qth tth pxFluctuation qImg
+getXyShift :: ShiftOptions -> Int
+getXyShift None = 0
+getXyShift One = 1
+getXyShift Two = 2
+
+
+createAllColorDepthMasks :: (Image s p, Ord t, Num t)
+    => s p -- query image
+    -> t -- mask threshold
+    -> Bool -- mirror the mask
+    -> ShiftOptions -- shift options
+    -> [[(Int,p)]]
+createAllColorDepthMasks qImg maskThreshold mirrorFlag pixelShift =
+    let w = width qImg
+        xyShift = getXyShift pixelShift
+        xyShiftTransforms = [\(x,y) -> (x+dx,y+dy) | dy <- [-xyShift..xyShift], dx <- [-xyShift..xyShift]]
+        xyShiftMirrorTransforms = [\(x,y) -> (w-(x+dx)-1,y+dy) | dy <- [-xyShift..xyShift], dx <- [-xyShift..xyShift]]
+        masksExtractor = map (flip (regionPixelsAndCoords qImg) (`aboveThreshold` maskThreshold))
+        masks = masksExtractor xyShiftTransforms
+        mirrorMasks = if mirrorFlag then masksExtractor xyShiftMirrorTransforms else []
     in
-        if mirrorFlag then
-            mapCDSQuery horizontalMirror cdsQuery : [ cdsQuery ]
-        else
-            [ cdsQuery ]
+        masks ++ mirrorMasks
 
 
-mapCDSQuery :: (Image s p, Image s' p') => (s p -> s' p') -> ColorDepthQuery t z s p -> ColorDepthQuery t z s' p'
-mapCDSQuery f q@(ColorDepthQuery qth tth pxFluctuation qImg) = ColorDepthQuery qth tth pxFluctuation (f qImg)
+calculateBestScore :: (Num t, Ord t, RealFrac z, Image s p) => [[(Int,p)]] -> s p -> t -> z -> Int
+calculateBestScore queries target targetThreshold pixColorFluctuation = 
+    let calcMaskScore = \m -> calculateScore m target targetThreshold pixColorFluctuation
+    in maximum $ map calcMaskScore queries
 
 
-calculateBestScore :: (Num t, Ord t, RealFrac z, Image s p) => [ColorDepthQuery t z s p] -> s p -> Int
-calculateBestScore queries target = maximum $ map (`calculateScore` target) queries
-
-
-calculateScore :: (Num t, Ord t, RealFrac z, Image s p) => ColorDepthQuery t z s p -> s p -> Int
-calculateScore cdsQuery target =
-    let query = queryImage cdsQuery
-        threshold = targetThreshold cdsQuery
-        pixColorFluctuation = zTolerance cdsQuery
-        queryPixels = regionPixelCoord query (`aboveThreshold` queryThreshold cdsQuery)
-
-        getPixels :: (Image s p) => s p -> s p -> Int -> (p, p)
-        getPixels i1 i2 coord =
-            let p1 = getAt i1 coord
-                p2 = getAt i2 coord
-            in (p1, p2)
-
-        checkTargetPixel :: (Pixel p) => (p, p) -> Bool
-        checkTargetPixel (_, tp) = aboveThreshold tp threshold
-
-        pixelComponents :: (Pixel p) => (p, p) -> ((Word8, Word8, Word8), (Word8, Word8, Word8))
-        pixelComponents (p1, p2) = (rgb p1, rgb p2)
-
-        pixelsToCompare = filter checkTargetPixel $ map (getPixels query target) queryPixels
-        rgbsToCompare = map pixelComponents pixelsToCompare
-        pxGaps = map (uncurry pixelGap) rgbsToCompare
+calculateScore :: (Num t, Ord t, RealFrac z, Image s p) => [(Int, p)] -> s p -> t -> z -> Int
+calculateScore mask targetImage targetThreshold pixColorFluctuation =
+    let queryPixelPos = map fst mask 
+        queryPixels = map snd mask
+        targetPixels = map (getAt targetImage) queryPixelPos
+        pixelsToCompare = filter ((`aboveThreshold` targetThreshold) . snd) $ zip queryPixels targetPixels
+        pxGaps = map (uncurry pixelGap) pixelsToCompare
 
     in length $ filter (pixColorFluctuation >=) pxGaps
 
 
-pixelGap :: RealFrac g => (Word8, Word8, Word8) -> (Word8, Word8, Word8) -> g
-pixelGap (red1, green1, blue1) (red2, green2, blue2) = pxGap
+pixelGap :: (Pixel p, RealFrac g) => p -> p -> g
+pixelGap p1 p2  = pxGap
     where
+        (red1, green1, blue1) = rgb p1
+        (red2, green2, blue2) = rgb p2
         r1 = fromIntegral red1
         g1 = fromIntegral green1
         b1 = fromIntegral  blue1
