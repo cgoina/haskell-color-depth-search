@@ -10,8 +10,7 @@ import Args ( parseCmdArgs
             , pixColorFluctuation)
 import BoxedImage ( BoxedImage )
 import ImageProcessing (clearRegion)
-import ColorDepthSearch ( ColorDepthQuery(..)
-                        , ShiftOptions
+import ColorDepthSearch ( ShiftOptions
                         , createAllColorDepthMasks
                         , calculateBestScore)
 

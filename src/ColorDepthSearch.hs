@@ -17,14 +17,6 @@ data ShiftOptions = None | One | Two
                     deriving Show
 
 
-data ColorDepthQuery t z s p = ColorDepthQuery {
-    queryThreshold :: (Ord t, Num t) => t
-  , targetThreshold :: (Ord t, Num t) => t -- target threshold
-  , zTolerance :: RealFrac z => z -- pixel color fluctuation
-  , queryImage :: Image s p => s p -- query image
-}
-
-
 getXyShift :: ShiftOptions -> Int
 getXyShift None = 0
 getXyShift One = 1
