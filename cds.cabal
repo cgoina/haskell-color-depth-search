@@ -26,7 +26,6 @@ source-repository head
 library
   exposed-modules:
       Args
-      ArrayImage
       BoxedImage
       ColorDepthSearch
       Image
@@ -39,7 +38,6 @@ library
   build-depends:
       JuicyPixels >=3.3.5
     , base >=4.7 && <5
-    , massiv >=0.6.1.0
     , optparse-applicative >=0.16
     , vector >=0.12.3.0
   default-language: Haskell2010
