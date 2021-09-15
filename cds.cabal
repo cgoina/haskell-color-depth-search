@@ -27,6 +27,7 @@ library
   exposed-modules:
       Args
       BoxedImage
+      ColorDepthMask
       ColorDepthSearch
       Image
       ImageIO

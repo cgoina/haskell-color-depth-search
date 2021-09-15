@@ -32,7 +32,7 @@ import Options.Applicative
       , Parser )
 import Data.Semigroup ((<>))
 
-import ColorDepthSearch ( ShiftOptions(..) )
+import ColorDepthMask ( ShiftOptions(..) )
 
 
 data CDSArgs = CDSArgs {
