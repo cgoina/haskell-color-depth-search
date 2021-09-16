@@ -29,6 +29,8 @@ library
       BoxedImage
       ColorDepthMask
       ColorDepthSearch
+      ColorDepthSearch.Accelerate
+      ColorDepthSearch.Pure
       Image
       ImageIO
       ImageProcessing
@@ -38,6 +40,9 @@ library
       src
   build-depends:
       JuicyPixels >=3.3.5
+    , accelerate >=1.3.0.0
+    , accelerate-llvm >=1.3.0.0
+    , accelerate-llvm-native >=1.3.0.0
     , base >=4.7 && <5
     , optparse-applicative >=0.16
     , vector >=0.12.3.0

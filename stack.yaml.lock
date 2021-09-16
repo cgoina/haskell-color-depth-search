@@ -4,10 +4,51 @@
 #   https://docs.haskellstack.org/en/stable/lock_files
 
 snapshots:
-- original:
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/18/5.yaml
+- original: lts-18.10
   completed:
-    sha256: 22d24d0dacad9c1450b9a174c28d203f9bb482a2a8da9710a2f2a9f4afee2887
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/18/5.yaml
-    size: 585817
-packages: []
+    sha256: 88b4f81e162ba3adc230a9fcccc4d19ac116377656bab56c7382ca88598b257a
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/18/10.yaml
+    size: 587546
+packages:
+- original:
+    hackage: accelerate-1.3.0.0
+  completed:
+    pantry-tree:
+      sha256: 00e83fbc4576aea9d8efdaf4e04fa2a6d1c5a1551bd733a63f4b7aaf46b472c9
+      size: 13459
+    hackage: accelerate-1.3.0.0@sha256:f19e43687e9a306fddaddfa68a764b157ceb2522d9a821e31bc3353c730fda2b,20995
+- original:
+    hackage: accelerate-llvm-1.3.0.0
+  completed:
+    pantry-tree:
+      sha256: 2d427a3426a3a5c1a60aec58dd079cc12a0db28f69ea022b042e94775a690d1a
+      size: 4685
+    hackage: accelerate-llvm-1.3.0.0@sha256:06dc3779b3577ed41b2ddf2421452b566f290dce53df83d027938d41f2d5ec82,6054
+- original:
+    hackage: accelerate-llvm-native-1.3.0.0
+  completed:
+    pantry-tree:
+      sha256: d0e5ff709881066cb4fcd27326aa15bd5817e25a1c9ef869d7f845905bfc826c
+      size: 3677
+    hackage: accelerate-llvm-native-1.3.0.0@sha256:8d0b8fcbce1595cb380ee6bb892efffeb3abffd050550322d8b35b7f23e27481,6329
+- original:
+    hackage: accelerate-llvm-ptx-1.3.0.0
+  completed:
+    pantry-tree:
+      sha256: d514c9bc379c9a73e5542f8b137b223ac8a7590e9d5e719af19541d05c886856
+      size: 4378
+    hackage: accelerate-llvm-ptx-1.3.0.0@sha256:532f7811702fe6909841cd9f172f5ae5733d85361e42d8d3122fb973ad772250,6677
+- original:
+    hackage: llvm-hs-9.0.1
+  completed:
+    pantry-tree:
+      sha256: 537616dec1351bd9f7905182f82f132359cf3058ebbb059c03b4edcef04b2689
+      size: 13599
+    hackage: llvm-hs-9.0.1@sha256:ee6ec2eb8cba4daf2a43586388a87dbfd6a2ec6d81d1f9965896ac187acad286,8700
+- original:
+    hackage: llvm-hs-pure-9.0.0
+  completed:
+    pantry-tree:
+      sha256: f1a83aa959b69b72342997fc4fdc352086bc3b9f306cfb6a4c8bbc850d36b4fb
+      size: 2600
+    hackage: llvm-hs-pure-9.0.0@sha256:134779f40086a366279f678e670b610d7a7618b28dd43f65894078fd20e04629,2945
