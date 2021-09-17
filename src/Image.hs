@@ -64,3 +64,6 @@ regionPixelsAndCoords img coordTransform cond =
     in
         filter (cond . snd) (zip pis pcs)
 
+
+imagePixels :: Image s p => s p -> [p]
+imagePixels img = map (getAt img) [0..(size img - 1)]

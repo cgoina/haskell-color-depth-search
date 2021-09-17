@@ -9,15 +9,16 @@ module ColorDepthSearch
 import Image ( Image )
 
 import ColorDepthSearch.Internal
-    ( CDSMask(createAllMasks)
+    ( CDSMask
     , ShiftOptions(..)
     , calculateBestScore )
 
-import ColorDepthSearch.Naive ( createAllMaskPixels, MaskPixels ) 
+import qualified ColorDepthSearch.Naive as N ( MaskPixels,
+                                               createAllMaskPixels)
 
 createQueryMasks :: (Image s p, Ord t, Num t) => s p -- image
-                                                           -> t -- threshold
-                                                           -> Bool -- mirror
-                                                           -> ShiftOptions
-                                                           -> [MaskPixels p] -- color depth masks
-createQueryMasks = createAllMaskPixels
+                                              -> t -- threshold
+                                              -> Bool -- mirror
+                                              -> ShiftOptions
+                                              -> [N.MaskPixels p] -- color depth masks
+createQueryMasks = N.createAllMaskPixels
