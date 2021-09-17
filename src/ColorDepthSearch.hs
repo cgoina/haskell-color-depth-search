@@ -1,14 +1,23 @@
-{-# LANGUAGE MultiWayIf #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
-module ColorDepthSearch where
+module ColorDepthSearch 
+    ( ShiftOptions(..)
+    , calculateBestScore
+    , createQueryMasks )
+    where
 
-import Image( Image )
+import Image ( Image )
 
-import ColorDepthSearch.Accelerate ( calculateScore )
+import ColorDepthSearch.Internal
+    ( CDSMask(createAllMasks)
+    , ShiftOptions(..)
+    , calculateBestScore )
 
+import ColorDepthSearch.Naive ( createAllMaskPixels, MaskPixels ) 
 
-calculateBestScore :: (Num t, Ord t, RealFrac z, Image s p) => [[(Int,p)]] -> s p -> t -> z -> Int
-calculateBestScore queries target targetThreshold pixColorFluctuation = 
-    let calcMaskScore = \m -> calculateScore m target targetThreshold pixColorFluctuation
-    in maximum $ map calcMaskScore queries
-
+createQueryMasks :: (Image s p, Ord t, Num t) => s p -- image
+                                                           -> t -- threshold
+                                                           -> Bool -- mirror
+                                                           -> ShiftOptions
+                                                           -> [MaskPixels p] -- color depth masks
+createQueryMasks = createAllMaskPixels

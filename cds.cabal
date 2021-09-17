@@ -27,10 +27,10 @@ library
   exposed-modules:
       Args
       BoxedImage
-      ColorDepthMask
       ColorDepthSearch
       ColorDepthSearch.Accelerate
-      ColorDepthSearch.Pure
+      ColorDepthSearch.Internal
+      ColorDepthSearch.Naive
       Image
       ImageIO
       ImageProcessing

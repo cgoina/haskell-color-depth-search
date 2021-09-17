@@ -1,18 +1,68 @@
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE MultiWayIf #-}
 
-module ColorDepthSearch.Pure where
+module ColorDepthSearch.Naive (
+    MaskPixels,
+    createAllMaskPixels
+) where
 
 import Data.Word ( Word8 )
 
-import Image( Image( getAt )
+
+import Image( Image( getAt, width, height )
             , Pixel(rgb)
-            , aboveThreshold )
+            , aboveThreshold
+            , regionPixelsAndCoords )
+
+import ColorDepthSearch.Internal ( CDSMask(..), getXyShift, ShiftOptions )
+import qualified Data.Bifunctor
+
+newtype MaskPixels p = MaskPixels {
+    pixelsWithCoord :: [(Int,p)]
+}
 
 
-calculateScore :: (Num t, Ord t, RealFrac z, Image s p) => [(Int, p)] -> s p -> t -> z -> Int
-calculateScore mask targetImage targetThreshold pixColorFluctuation =
-    let queryPixelsPos = map fst mask 
-        queryPixels = map snd mask
+instance Functor MaskPixels where
+    fmap f mask@(MaskPixels ps) =
+        let pf = Data.Bifunctor.second f
+        in MaskPixels $ map pf ps
+
+
+instance Pixel p => CDSMask MaskPixels p where
+    createAllMasks = createAllMaskPixels
+    applyMask = applyPixelsMask
+
+
+createAllMaskPixels :: (Image s p, Ord t, Num t) => s p -- image
+                                                 -> t -- threshold
+                                                 -> Bool -- mirror
+                                                 -> ShiftOptions
+                                                 -> [MaskPixels p] -- color depth masks
+createAllMaskPixels img maskThreshold mirror pixelShift = 
+    let w = width img
+        h = height img
+        xyShift = getXyShift pixelShift
+        xyShiftTransforms = [\(x,y) -> (x+dx,y+dy) | dy <- [-xyShift..xyShift], dx <- [-xyShift..xyShift]]
+        xyShiftMirrorTransforms = [\(x,y) -> (w-(x+dx)-1,y+dy) | dy <- [-xyShift..xyShift], dx <- [-xyShift..xyShift]]
+        masksExtractor = map (flip (regionPixelsAndCoords img) (`aboveThreshold` maskThreshold))
+        masks = map MaskPixels $ masksExtractor xyShiftTransforms
+        mirrorMasks =
+            if mirror then
+                map MaskPixels $ masksExtractor xyShiftMirrorTransforms
+            else []
+    in
+        masks ++ mirrorMasks
+
+
+applyPixelsMask :: (Image s p, Ord t, Num t, RealFrac z) => MaskPixels p 
+                                                            -> s p
+                                                            -> t
+                                                            -> z
+                                                            -> Int
+applyPixelsMask mask@(MaskPixels mpcs) targetImage targetThreshold pixColorFluctuation =
+    let queryPixelsPos = map fst mpcs
+        queryPixels = map snd mpcs
         targetPixels = map (getAt targetImage) queryPixelsPos
         pixelsToCompare = filter ((`aboveThreshold` targetThreshold) . snd) $ zip queryPixels targetPixels
         pxGaps = map (uncurry pixelGap) pixelsToCompare

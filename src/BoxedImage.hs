@@ -20,7 +20,7 @@ data BoxedImage p = BoxedImage {
 }
 
 
-instance (Pixel p) => Image BoxedImage p where
+instance Pixel p => Image BoxedImage p where
     width = fst . dims
 
     height = snd . dims

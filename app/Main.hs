@@ -7,13 +7,12 @@ import Args ( parseCmdArgs
             , shiftOption
             , maskThreshold
             , dataThreshold
-            , pixColorFluctuation)
+            , pixColorFluctuation )
 import BoxedImage ( BoxedImage )
 import ImageProcessing (clearRegion)
-import ColorDepthMask ( ShiftOptions
-                      , createAllColorDepthMasks)
-import ColorDepthSearch ( calculateBestScore)
-
+import ColorDepthSearch ( ShiftOptions
+                        , calculateBestScore
+                        , createQueryMasks )
 import qualified ImageIO as IIO(readImage)
 
 main :: IO ()
@@ -42,5 +41,5 @@ cds query queryThreshold mirror xyShift target targetThreshold pxFluctuation =
     let isLabelRegion = \x y -> x < 330 && y < 100 || x >= 950 && y < 85
         unlabeledQuery = clearRegion query isLabelRegion
         unlabeledTarget = clearRegion target isLabelRegion
-        cdsMasks = createAllColorDepthMasks unlabeledQuery queryThreshold mirror xyShift
+        cdsMasks = createQueryMasks unlabeledQuery queryThreshold mirror xyShift
     in calculateBestScore cdsMasks unlabeledTarget targetThreshold pxFluctuation
