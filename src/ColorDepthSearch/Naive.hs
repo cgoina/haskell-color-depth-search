@@ -34,11 +34,11 @@ instance Pixel p => CDSMask MaskPixels p where
     applyMask = applyPixelsMask
 
 
-createAllMaskPixels :: (Image s p, Ord t, Num t) => s p -- image
-                                                 -> t -- threshold
-                                                 -> Bool -- mirror
-                                                 -> ShiftOptions
-                                                 -> [MaskPixels p] -- color depth masks
+createAllMaskPixels :: (Image s p, Integral t) => s p -- image
+                                               -> t -- threshold
+                                               -> Bool -- mirror
+                                               -> ShiftOptions
+                                               -> [MaskPixels p] -- color depth masks
 createAllMaskPixels img maskThreshold mirror pixelShift = 
     let w = width img
         h = height img
@@ -55,11 +55,11 @@ createAllMaskPixels img maskThreshold mirror pixelShift =
         masks ++ mirrorMasks
 
 
-applyPixelsMask :: (Image s p, Ord t, Num t, RealFrac z) => MaskPixels p 
-                                                            -> s p
-                                                            -> t
-                                                            -> z
-                                                            -> Int
+applyPixelsMask :: (Image s p, Integral t, RealFrac z) => MaskPixels p 
+                                                       -> s p
+                                                       -> t
+                                                       -> z
+                                                       -> Int
 applyPixelsMask mask@(MaskPixels mpcs) targetImage targetThreshold pixColorFluctuation =
     let queryPixelsPos = map fst mpcs
         queryPixels = map snd mpcs

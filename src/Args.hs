@@ -41,8 +41,8 @@ data CDSArgs = CDSArgs {
   , maxFilterRadius :: Float
   , noMaskMirroring :: !Bool
   , shiftOption :: ShiftOptions
-  , maskThreshold :: Double
-  , dataThreshold :: Double
+  , maskThreshold :: Int
+  , dataThreshold :: Int
   , pixColorFluctuation :: Double
 } deriving (Show)
 
@@ -66,11 +66,11 @@ cdsArgs = CDSArgs
       <|> flag'  Two ( long "twoXYShift" <> help "xy shift = 2") )
    <*> option auto
        ( long "maskThreshold"
-       <> value 0.01
+       <> value 20
        <> help "Mask threshold" )
    <*> option auto
        ( long "dataThreshold"
-       <> value 0.01
+       <> value 20
        <> help "Mask threshold" )
    <*> option auto
         ( long "pixColorFluctuation"

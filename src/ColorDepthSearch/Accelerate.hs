@@ -4,6 +4,7 @@
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ExistentialQuantification #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module ColorDepthSearch.Accelerate (
     ImageMask
@@ -26,10 +27,12 @@ import Image( Image( getAt, width, height )
             , imagePixels
             , toNum )
 import ImageProcessing (horizontalMirror, shift)
-import ColorDepthSearch.Internal ( CDSMask(..), getXyShift, ShiftOptions )
+import ColorDepthSearch.Internal ( CDSMask(..)
+                                 , getXyShift
+                                 , ShiftOptions )
 
 
-data ImageMask p = forall t. (P.Ord t, P.Num t) => ImageMask {
+data ImageMask p = forall t. P.Integral t => ImageMask {
     maskPixels :: A.Vector A.Int
   , imageWidth :: P.Int
   , imageHeight :: P.Int
@@ -53,21 +56,21 @@ getPixelsAsVector img =
         A.fromList (A.Z A.:. w P.* h) pixelsFromImage
 
 
-mkImageMask :: (Image s p, P.Ord t, P.Num t) => s p -- image
-                                             -> t -- threshold
-                                             -> P.Bool -- mirror
-                                             -> (P.Int, P.Int) -- xyShift
-                                             -> ImageMask p -- color depth masks
+mkImageMask :: (Image s p, P.Integral t) => s p -- image
+                                         -> t -- threshold
+                                         -> P.Bool -- mirror
+                                         -> (P.Int, P.Int) -- xyShift
+                                         -> ImageMask p -- color depth masks
 mkImageMask img threshold mirror xyShift =
     let maskPixels = getPixelsAsVector img
     in ImageMask maskPixels (width img) (height img) threshold mirror xyShift
 
 
-createAllMaskPixels :: (Image s p, P.Ord t, P.Num t) => s p -- image
-                                                     -> t -- threshold
-                                                     -> P.Bool -- mirror
-                                                     -> ShiftOptions
-                                                     -> [ImageMask p] -- color depth masks
+createAllMaskPixels :: (Image s p, P.Integral t) => s p -- image
+                                                 -> t -- threshold
+                                                 -> P.Bool -- mirror
+                                                 -> ShiftOptions
+                                                 -> [ImageMask p] -- color depth masks
 createAllMaskPixels img maskThreshold mirror pixelShift =
     let xyShift = getXyShift pixelShift
         xyShifts = [(dx,dy) | dy <- [-xyShift..xyShift], dx <- [-xyShift..xyShift]]
@@ -81,46 +84,57 @@ createAllMaskPixels img maskThreshold mirror pixelShift =
 
 
 applyPixelsMask :: ( Image s p
-                   , P.Ord t'
-                   , P.Num t'
+                   , P.Integral t
                    , P.RealFrac z) => ImageMask p
                                    -> s p
-                                   -> t'
+                                   -> t
                                    -> z
                                    -> P.Int
 applyPixelsMask mask@(ImageMask mps w h maskTh mirror dxy) targetImage targetThreshold pixColorFluctuation =
     let targetPixels = getPixelsAsVector targetImage
+        (maskTh'::P.Int) = P.fromIntegral maskTh
+        (targetTh'::P.Int) = P.fromIntegral targetThreshold
+        (pxFluct::P.Double) = P.realToFrac pixColorFluctuation
     in
-        calculatePixelsScore mps maskTh targetPixels targetThreshold pixColorFluctuation
+        calculatePixelsScore mps maskTh' targetPixels targetTh' pxFluct
 
 
-calculatePixelsScore :: ( P.Ord t, P.Num t
-                        , P.Ord t', P.Num t'
-                        , P.RealFrac z) => A.Vector A.Int -- mask
-                                        -> t
-                                        -> A.Vector A.Int -- target
-                                        -> t'
-                                        -> z
-                                        -> A.Int
+calculatePixelsScore :: A.Vector A.Int -- mask
+                     -> A.Int
+                     -> A.Vector A.Int -- target
+                     -> A.Int
+                     -> A.Double
+                     -> A.Int
 
 calculatePixelsScore mask mTh target tTh pxColorFluctuation =
-    let 
+    let
         mask' = A.use mask
         target' = A.use target
-        score = A.toList P.$ CPU.run P.$ calculatePixelsScore' mask' target'
+        mTh' = A.constant mTh
+        tTh' = A.constant tTh
+        score = A.toList
+                P.$ CPU.run
+                P.$ calculatePixelsScore' mask' mTh' target' tTh'
     in case score of
       [] -> 0
       n : ns -> n
 
 
-calculatePixelsScore' :: A.Acc (A.Vector A.Int) -> A.Acc (A.Vector A.Int) -> A.Acc (A.Scalar A.Int)
-calculatePixelsScore' mask target =
-    A.fold (A.+) 0 (A.zipWith cdMatch mask target)
+calculatePixelsScore' :: A.Acc (A.Vector A.Int)
+                      -> A.Exp A.Int
+                      -> A.Acc (A.Vector A.Int)
+                      -> A.Exp A.Int
+                      -> A.Acc (A.Scalar A.Int)
+calculatePixelsScore' mask mTh target tTh =
+    A.fold (A.+) 0 (A.zipWith (cdMatch mTh tTh) mask target)
 
 
-cdMatch :: (A.Ord a, A.Num a) => A.Exp a
-                   -> A.Exp a
-                   -> A.Exp A.Int
-cdMatch p1 p2 =
-    let c1 = p1 A.== 0 A.|| p2 A.== 0
+cdMatch :: A.Exp A.Int
+        -> A.Exp A.Int
+        -> A.Exp A.Int
+        -> A.Exp A.Int
+        -> A.Exp A.Int
+cdMatch t1 t2 p1 p2 =
+    let c1 = p1 A.>= t1  A.|| p2 A.>= t2
+
     in A.cond c1 0 1

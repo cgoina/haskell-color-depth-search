@@ -27,9 +27,9 @@ toNum p =
 
 
 
-aboveThreshold :: (Ord a, Num a, Pixel p) => p -> a -> Bool
+aboveThreshold :: (Pixel p, Integral a) => p -> a -> Bool
 aboveThreshold p th = let (r, g, b) = rgb p
-                      in fromIntegral r > th && fromIntegral g > th && fromIntegral b > th
+                      in r > fromIntegral th && g > fromIntegral th && b > fromIntegral th
 
 
 class (Functor s, Pixel p) => Image s p where

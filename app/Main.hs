@@ -36,7 +36,7 @@ readImageFromFile :: FilePath -> IO (Either String (BoxedImage Int))
 readImageFromFile = IIO.readImage
 
 
-cds :: BoxedImage Int -> Double -> Bool -> ShiftOptions -> BoxedImage Int -> Double -> Double -> Int
+cds :: BoxedImage Int -> Int -> Bool -> ShiftOptions -> BoxedImage Int -> Int -> Double -> Int
 cds query queryThreshold mirror xyShift target targetThreshold pxFluctuation =
     let isLabelRegion = \x y -> x < 330 && y < 100 || x >= 950 && y < 85
         unlabeledQuery = clearRegion query isLabelRegion
