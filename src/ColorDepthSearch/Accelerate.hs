@@ -101,45 +101,26 @@ calculatePixelsScore :: ( P.Ord t, P.Num t
                                         -> A.Vector A.Int -- target
                                         -> t'
                                         -> z
-                                        -> P.Int
+                                        -> A.Int
 
 calculatePixelsScore mask mTh target tTh pxColorFluctuation =
     let 
-        maskPixels' = A.use mask
-        targetPixels' = A.use target
-    in
-        0
+        mask' = A.use mask
+        target' = A.use target
+        score = A.toList P.$ CPU.run P.$ calculatePixelsScore' mask' target'
+    in case score of
+      [] -> 0
+      n : ns -> n
 
 
-
--- calculateScore :: (P.Num t, P.Ord t, P.RealFrac z, Image s p) => [(P.Int, p)] -> s p -> t -> z -> P.Int
--- calculateScore mask targetImage targetThreshold pixColorFluctuation =
---     let r = CPU.run P.$ calculateScore' mask targetImage targetThreshold pixColorFluctuation
---     in P.head P.$ A.toList r
+calculatePixelsScore' :: A.Acc (A.Vector A.Int) -> A.Acc (A.Vector A.Int) -> A.Acc (A.Scalar A.Int)
+calculatePixelsScore' mask target =
+    A.fold (A.+) 0 (A.zipWith cdMatch mask target)
 
 
--- calculateScore' :: (P.Num t, P.Ord t, P.RealFrac z, Image s p) => [(P.Int, p)] -> s p -> t -> z -> A.Acc (A.Scalar A.Int)
--- calculateScore' mask targetImage targetThreshold pixColorFluctuation =
---     let queryPixelsPos = P.map P.fst mask
---         queryPixelsComps = P.map (rgb P.. P.snd) mask
---         targetPixelsComps = P.map (rgb P.. getAt targetImage) queryPixelsPos
---         accQueryPixels = A.fromList (A.Z A.:. P.length queryPixelsComps) queryPixelsComps
---         accTargetPixels = A.fromList (A.Z A.:. P.length targetPixelsComps) targetPixelsComps
-
---     in score accQueryPixels accTargetPixels
-
-
--- score :: A.Num a => A.Vector (a,a,a)
---                -> A.Vector (a,a,a)
---                -> A.Acc (A.Scalar A.Int)
--- score xs ys =
---   let xs' = A.use xs
---       ys' = A.use ys
---   in A.fold (A.+) 0 ( A.zipWith cdMatch xs' ys' )
-
-
--- cdMatch :: A.Num a => A.Exp (a,a,a)
---                    -> A.Exp (a,a,a)
---                    -> A.Exp A.Int
--- cdMatch p1 p2 =
---     1
+cdMatch :: (A.Ord a, A.Num a) => A.Exp a
+                   -> A.Exp a
+                   -> A.Exp A.Int
+cdMatch p1 p2 =
+    let c1 = p1 A.== 0 A.|| p2 A.== 0
+    in A.cond c1 0 1
