@@ -3,6 +3,7 @@
 module Image where
 
 import Data.Word ( Word8 )
+import Data.Bits (Bits, (.&.), (.|.), shiftL, shiftR)
 
 
 type RedC = Word8
@@ -17,6 +18,13 @@ class Pixel p where
 
     clear :: p -> p
     clear p = makePixel 0 0 0
+
+
+toNum :: (Pixel p) => p -> Int
+toNum p = 
+    let (r,g,b) = rgb p
+    in (fromIntegral r `shiftL` 16) .|. (fromIntegral g `shiftL` 8) .|. fromIntegral b
+
 
 
 aboveThreshold :: (Ord a, Num a, Pixel p) => p -> a -> Bool

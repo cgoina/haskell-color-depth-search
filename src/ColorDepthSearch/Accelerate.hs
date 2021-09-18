@@ -8,20 +8,36 @@ module ColorDepthSearch.Accelerate where
 import qualified Prelude as P
 
 import qualified Data.Array.Accelerate as A
+import qualified Data.Bits as B ((.&.), (.|.), shiftL, shiftR)
+
 import Data.Array.Accelerate.LLVM.Native as CPU ( run )
 
 import Data.Word ( Word8 )
 
 import Image( Image( getAt, size )
-            , Pixel(rgb)
+            , Pixel(rgb, makePixel, clear)
             , aboveThreshold
-            , imagePixels )
+            , imagePixels
+            , toNum )
 import ImageProcessing (horizontalMirror, shift)
 import ColorDepthSearch.Internal ( CDSMask(..), getXyShift, ShiftOptions )
+import qualified Data.Array.Accelerate.Sugar.Elt as A
 
 
-data ImageMask p = forall t s p. (P.Ord t, P.Num t, Image s p) => ImageMask {
-    maskImage :: s p
+
+instance Pixel A.Int where
+    rgb p = let r = P.fromIntegral P.$ (p `B.shiftR` 16) B..&. 0xFF
+                g = P.fromIntegral P.$ (p `B.shiftR` 8) B..&. 0xFF
+                b = P.fromIntegral P.$ p B..&. 0xFF
+            in (r, g, b)
+
+    makePixel r g b = (P.fromIntegral r `B.shiftL` 16) B..|. (P.fromIntegral g `B.shiftL` 8) B..|. P.fromIntegral b
+
+    clear p = 0
+
+
+data ImageMask p = forall t p. (P.Ord t, P.Num t, Pixel p) => ImageMask {
+    maskImage :: A.Vector p
   , maskThreshold :: t
   , mirror :: P.Bool
   , xyShift :: (P.Int, P.Int)
@@ -33,7 +49,10 @@ mkImageMask :: (Image s p, P.Ord t, P.Num t) => s p -- image
                                              -> P.Bool -- mirror
                                              -> (P.Int, P.Int) -- xyShift
                                              -> ImageMask p -- color depth masks
-mkImageMask = ImageMask
+mkImageMask img threshold mirror xyShift =
+    let pixelsFromImage = P.map toNum (imagePixels img)
+        maskPixels = A.fromList (A.Z A.:. size img) pixelsFromImage
+    in ImageMask maskPixels threshold mirror xyShift
 
 
 createAllMaskPixels :: (Image s p, P.Ord t, P.Num t) => s p -- image

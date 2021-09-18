@@ -7,7 +7,7 @@ import Image( Image(..),
               Pixel(..) )
 
 
-class (Pixel p) => CodecPixel p where
+class Pixel p => CodecPixel p where
     fromCodecPixel :: JP.PixelRGB8 -> p
     toCodecPixel :: p -> JP.PixelRGB8
 
