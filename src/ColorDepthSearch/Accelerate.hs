@@ -4,10 +4,6 @@
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module ColorDepthSearch.Accelerate (
     ImageMask
@@ -31,39 +27,6 @@ import Image( Image( getAt, width, height )
             , toNum )
 import ImageProcessing (horizontalMirror, shift)
 import ColorDepthSearch.Internal ( CDSMask(..), getXyShift, ShiftOptions )
-import GHC.Generics (Generic)
-import GHC.ByteOrder (targetByteOrder)
-
-
--- newtype AInt a = AInt a 
---                  deriving (Generic, A.Elt)
-
--- fromAInt :: AInt a -> a
--- fromAInt (AInt a) = a
-
--- toAInt :: a -> AInt a
--- toAInt = AInt
-
-
--- instance P.Num a => P.Num (AInt a) where
---   (+) a@(AInt n1) b@(AInt n2) = AInt P.$ n1 P.+ n2
---   (-) a@(AInt n1) b@(AInt n2) = AInt P.$ n1 P.- n2
---   (*) a@(AInt n1) b@(AInt n2) = AInt P.$ n1 P.* n2
---   abs a@(AInt n1) = AInt P.$ P.abs n1
---   signum a@(AInt n1) = AInt P.$ P.signum n1
---   fromInteger i = AInt P.$ P.fromInteger i
-
-
--- instance Pixel A.Int where
---     rgb p = let r = P.fromIntegral P.$ (p `B.shiftR` 16) B..&. 0xFF
---                 g = P.fromIntegral P.$ (p `B.shiftR` 8) B..&. 0xFF
---                 b = P.fromIntegral P.$ p B..&. 0xFF
---             in (r, g, b)
-
---     makePixel r g b = (P.fromIntegral r `B.shiftL` 16) B..|. (P.fromIntegral g `B.shiftL` 8) B..|. P.fromIntegral b
-
---     clear p = 0
-
 
 
 data ImageMask p = forall t. (P.Ord t, P.Num t) => ImageMask {
