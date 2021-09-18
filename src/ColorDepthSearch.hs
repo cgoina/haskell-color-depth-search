@@ -15,10 +15,20 @@ import ColorDepthSearch.Internal
 
 import qualified ColorDepthSearch.Naive as N ( MaskPixels,
                                                createAllMaskPixels)
+import qualified ColorDepthSearch.Accelerate as A ( ImageMask,
+                                                    createAllMaskPixels)
+
+createQueryMasks' :: (Image s p, Ord t, Num t) => s p -- image
+                                              -> t -- threshold
+                                              -> Bool -- mirror
+                                              -> ShiftOptions
+                                              -> [N.MaskPixels p] -- color depth masks
+createQueryMasks' = N.createAllMaskPixels
+
 
 createQueryMasks :: (Image s p, Ord t, Num t) => s p -- image
                                               -> t -- threshold
                                               -> Bool -- mirror
                                               -> ShiftOptions
-                                              -> [N.MaskPixels p] -- color depth masks
-createQueryMasks = N.createAllMaskPixels
+                                              -> [A.ImageMask p] -- color depth masks
+createQueryMasks = A.createAllMaskPixels

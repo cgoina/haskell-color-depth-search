@@ -3,8 +3,8 @@
 {-# LANGUAGE MultiWayIf #-}
 
 module ColorDepthSearch.Naive (
-    MaskPixels,
-    createAllMaskPixels
+    MaskPixels
+  , createAllMaskPixels
 ) where
 
 import Data.Word ( Word8 )
