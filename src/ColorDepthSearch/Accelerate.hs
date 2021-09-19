@@ -15,7 +15,6 @@ import qualified Prelude as P
 
 import qualified Data.Array.Accelerate as A
 import qualified Data.Bits as B (Bits, (.&.), (.|.), shiftL, shiftR)
-import Data.Coerce ( coerce )
 
 import Data.Array.Accelerate.LLVM.Native as CPU ( run )
 
@@ -30,6 +29,7 @@ import ImageProcessing (horizontalMirror, shift)
 import ColorDepthSearch.Internal ( CDSMask(..)
                                  , getXyShift
                                  , ShiftOptions )
+import qualified Data.Array.Accelerate.Data.Bits as A
 
 
 data ImageMask p = forall t. P.Integral t => ImageMask {
@@ -105,36 +105,87 @@ calculatePixelsScore :: A.Vector A.Int -- mask
                      -> A.Int
                      -> A.Double
                      -> A.Int
-
 calculatePixelsScore mask mTh target tTh pxColorFluctuation =
     let
         mask' = A.use mask
         target' = A.use target
         mTh' = A.constant mTh
         tTh' = A.constant tTh
+        pxFluct = A.constant pxColorFluctuation
         score = A.toList
                 P.$ CPU.run
-                P.$ calculatePixelsScore' mask' mTh' target' tTh'
+                P.$ calculatePixelsScore' mask' mTh' target' tTh' pxFluct
     in case score of
-      [] -> 0
-      n : ns -> n
+        [] -> 0
+        n : ns -> n
 
 
 calculatePixelsScore' :: A.Acc (A.Vector A.Int)
                       -> A.Exp A.Int
                       -> A.Acc (A.Vector A.Int)
                       -> A.Exp A.Int
+                      -> A.Exp A.Double
                       -> A.Acc (A.Scalar A.Int)
-calculatePixelsScore' mask mTh target tTh =
-    A.fold (A.+) 0 (A.zipWith (cdMatch mTh tTh) mask target)
+calculatePixelsScore' mask mTh target tTh pxFluct =
+    A.fold (A.+) 0 (A.zipWith (cdMatch mTh tTh pxFluct) mask target)
 
 
 cdMatch :: A.Exp A.Int
         -> A.Exp A.Int
+        -> A.Exp A.Double
         -> A.Exp A.Int
         -> A.Exp A.Int
         -> A.Exp A.Int
-cdMatch t1 t2 p1 p2 =
-    let c1 = p1 A.>= t1  A.|| p2 A.>= t2
+cdMatch t1 t2 pxFluct p1 p2 =
+    let (r1,g1,b1) = toRGB p1
+        (r2,g2,b2) = toRGB p2
 
-    in A.cond c1 0 1
+        (sbr1, br1, sbg1, bg1) = assignComps b1 r1 g1
+        (sgb1, gb1, sgr1, gr1) = assignComps g1 b1 r1
+        (srg1, rg1, srb1, rb1) = assignComps r1 g1 b1
+
+        (sbr2, br2, sbg2, bg2) = assignComps b2 r2 g2
+        (sgb2, gb2, sgr2, gr2) = assignComps g2 b2 r2
+        (srg2, rg2, srb2, rb2) = assignComps r2 g2 b2
+
+        brbg = A.constant (0.354862745::A.Double)
+        bggb = A.constant (0.996078431::A.Double)
+        gbgr = A.constant (0.505882353::A.Double)
+        grrg = A.constant (0.996078431::A.Double)
+        rgrb = A.constant (0.505882353::A.Double)
+
+        c1gtth = r1 A.>= A.fromIntegral t1 A.&& g1 A.>= A.fromIntegral t1 A.&& b1 A.>= A.fromIntegral t1
+        c2gtth = r2 A.>= A.fromIntegral t2 A.&& g2 A.>= A.fromIntegral t2 A.&& b2 A.>= A.fromIntegral t2
+
+    in A.cond (c1gtth A.&& c2gtth) 0 1
+
+
+toRGB :: A.Exp A.Int -> (A.Exp A.Double, A.Exp A.Double, A.Exp A.Double)
+toRGB c = let r = A.fromIntegral A.$ (c `A.shiftR` 16) A..&. 0xFF
+              g = A.fromIntegral A.$ (c `A.shiftR` 8) A..&. 0xFF
+              b = A.fromIntegral A.$ c A..&. 0xFF
+        in (r, g, b)
+
+ratio :: (A.Eq t, P.Fractional (A.Exp t)) => A.Exp t
+                                          -> A.Exp t
+                                          -> A.Exp t
+ratio a b = A.cond (a A./= 0 A.&& b A./= 0) (a A./ b) 0
+
+assignComps :: A.Exp A.Double
+            -> A.Exp A.Double
+            -> A.Exp A.Double
+            -> ( A.Exp A.Double
+               , A.Exp A.Double
+               , A.Exp A.Double
+               , A.Exp A.Double )
+assignComps a b c =
+    let ab = A.cond (a A.> b A.&& b A.> c)
+                (A.lift (a A.+ b, ratio b a))
+                (A.lift (A.constant 0, A.constant 0))
+        ac = A.cond (a A.> c A.&& c A.> b)
+                (A.lift (a A.+ c, ratio c a))
+                (A.lift (A.constant 0, A.constant 0))
+        (abSum, baRatio) = A.unlift ab
+        (acSum, caRatio) = A.unlift ac
+
+    in  (abSum, baRatio, acSum, caRatio)
