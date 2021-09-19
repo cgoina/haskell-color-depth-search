@@ -154,10 +154,17 @@ cdMatch t1 t2 pxFluct p1 p2 =
         grrg = A.constant (0.996078431::A.Double)
         rgrb = A.constant (0.505882353::A.Double)
 
-        c1gtth = r1 A.>= A.fromIntegral t1 A.&& g1 A.>= A.fromIntegral t1 A.&& b1 A.>= A.fromIntegral t1
-        c2gtth = r2 A.>= A.fromIntegral t2 A.&& g2 A.>= A.fromIntegral t2 A.&& b2 A.>= A.fromIntegral t2
+        pxGap = A.cond 
+                (sbr1 A.> 0 A.&& sbr2 A.> 0 A.&& br1 A.> 0 A.&& br2 A.> 0 A.&& br1 A./= br2)
+                (gapAB br1 br2)
+                (A.cond 
+                    (sbr1 A.> 0 A.&& sbg2 A.> 0 A.&& br1 A.< 0.44 A.&& bg2 A.< 0.54)
+                    (br1 A.- brbg A.+ bg2 A.- brbg)
+                    (A.constant 10000)
+                )
+                
 
-    in A.cond (c1gtth A.&& c2gtth) 0 1
+    in A.cond (pxGap A.< pxFluct) 1 0
 
 
 toRGB :: A.Exp A.Int -> (A.Exp A.Double, A.Exp A.Double, A.Exp A.Double)
@@ -189,3 +196,9 @@ assignComps a b c =
         (acSum, caRatio) = A.unlift ac
 
     in  (abSum, baRatio, acSum, caRatio)
+
+gapAB :: A.Exp A.Double -> A.Exp A.Double -> A.Exp A.Double
+gapAB a b = A.cond 
+            (a A./= b) 
+            (A.abs(a A.- b))
+            (A.cond (a A.== 255) (A.constant 1000) (A.constant 0))
