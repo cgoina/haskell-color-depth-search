@@ -1,8 +1,5 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE MultiWayIf #-}
-{-# LANGUAGE FlexibleContexts  #-}
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
@@ -140,6 +137,13 @@ cdMatch t1 t2 pxFluct p1 p2 =
     let (r1,g1,b1) = toRGB p1
         (r2,g2,b2) = toRGB p2
 
+        c1gtth = r1 A.>= A.fromIntegral t1
+            A.&& g1 A.>= A.fromIntegral t1
+            A.&& b1 A.>= A.fromIntegral t1
+        c2gtth = r2 A.>= A.fromIntegral t2
+            A.&& g2 A.>= A.fromIntegral t2
+            A.&& b2 A.>= A.fromIntegral t2
+
         (sbr1, br1, sbg1, bg1) = assignComps b1 r1 g1
         (sgb1, gb1, sgr1, gr1) = assignComps g1 b1 r1
         (srg1, rg1, srb1, rb1) = assignComps r1 g1 b1
@@ -202,9 +206,7 @@ cdMatch t1 t2 pxFluct p1 p2 =
                         )
                     )
                 )
-                
-
-    in A.cond (pxGap A.< pxFluct) 1 0
+    in A.cond (c1gtth A.&& c2gtth A.&& pxGap A.<= pxFluct) 1 0
 
 
 toRGB :: A.Exp A.Int -> (A.Exp A.Double, A.Exp A.Double, A.Exp A.Double)
@@ -213,9 +215,9 @@ toRGB c = let r = A.fromIntegral A.$ (c `A.shiftR` 16) A..&. 0xFF
               b = A.fromIntegral A.$ c A..&. 0xFF
         in (r, g, b)
 
-ratio :: (A.Eq t, P.Fractional (A.Exp t)) => A.Exp t
-                                          -> A.Exp t
-                                          -> A.Exp t
+ratio :: (A.Eq t, A.RealFrac t) => A.Exp t
+                                -> A.Exp t
+                                -> A.Exp t
 ratio a b = A.cond (a A./= 0 A.&& b A./= 0) (a A./ b) 0
 
 assignComps :: A.Exp A.Double

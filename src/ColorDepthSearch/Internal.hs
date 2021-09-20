@@ -1,10 +1,10 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE FlexibleInstances #-}
 
 module ColorDepthSearch.Internal 
     ( ShiftOptions(..)
     , getXyShift
-    , CDSMask( createAllMasks, applyMask )
-    , calculateBestScore )
+    , CDSMask( createAllMasks, applyMask ) )
     where
 
 import Image ( Image
@@ -33,7 +33,9 @@ class Pixel p => CDSMask m p where
                                                      -> Int -- cds score
 
 
-calculateBestScore :: (CDSMask m p, Image s p, Integral t, RealFrac z) => [m p] -> s p -> t -> z -> Int
-calculateBestScore queries target targetThreshold pixColorFluctuation = 
-    let calcMaskScore m = applyMask m target targetThreshold pixColorFluctuation
-    in maximum $ map calcMaskScore queries
+data EmptyCDSMask p = EmptyCDSMask
+
+
+instance Pixel p => CDSMask EmptyCDSMask p where
+    createAllMasks  _ _ _ _ = []
+    applyMask _ _ _ _ = 0

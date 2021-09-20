@@ -26,7 +26,6 @@ toNum p =
     in (fromIntegral r `shiftL` 16) .|. (fromIntegral g `shiftL` 8) .|. fromIntegral b
 
 
-
 aboveThreshold :: (Pixel p, Integral a) => p -> a -> Bool
 aboveThreshold p th = let (r, g, b) = rgb p
                       in r > fromIntegral th && g > fromIntegral th && b > fromIntegral th

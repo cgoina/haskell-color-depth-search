@@ -9,14 +9,14 @@ module ColorDepthSearch.Naive (
 
 import Data.Word ( Word8 )
 
-
 import Image( Image( getAt, width, height )
-            , Pixel(rgb)
+            , Pixel(rgb, clear)
             , aboveThreshold
             , regionPixelsAndCoords )
 
 import ColorDepthSearch.Internal ( CDSMask(..), getXyShift, ShiftOptions )
 import qualified Data.Bifunctor
+
 
 newtype MaskPixels p = MaskPixels {
     pixelsWithCoord :: [(Int,p)]
@@ -29,6 +29,15 @@ instance Functor MaskPixels where
         in MaskPixels $ map pf ps
 
 
+instance Applicative MaskPixels where
+    pure p = MaskPixels []
+    mfa@(MaskPixels pfs) <*> ma@(MaskPixels aps) =
+        let f :: (Int, a -> b) -> (Int, a) -> (Int, b)
+            f (i1, pf) (i2, p) = (i1, pf p)
+            bps = [((i1, pf), (i2, p)) | (i1, pf) <- pfs, (i2, p) <- aps, i1 == i2]
+        in MaskPixels $ map (uncurry f) bps
+
+
 instance Pixel p => CDSMask MaskPixels p where
     createAllMasks = createAllMaskPixels
     applyMask = applyPixelsMask
@@ -39,7 +48,7 @@ createAllMaskPixels :: (Image s p, Integral t) => s p -- image
                                                -> Bool -- mirror
                                                -> ShiftOptions
                                                -> [MaskPixels p] -- color depth masks
-createAllMaskPixels img maskThreshold mirror pixelShift = 
+createAllMaskPixels img maskThreshold mirror pixelShift =
     let w = width img
         h = height img
         xyShift = getXyShift pixelShift
@@ -55,7 +64,7 @@ createAllMaskPixels img maskThreshold mirror pixelShift =
         masks ++ mirrorMasks
 
 
-applyPixelsMask :: (Image s p, Integral t, RealFrac z) => MaskPixels p 
+applyPixelsMask :: (Image s p, Integral t, RealFrac z) => MaskPixels p
                                                        -> s p
                                                        -> t
                                                        -> z
