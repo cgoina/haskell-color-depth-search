@@ -54,11 +54,11 @@ createAllMaskPixels img maskThreshold mirror pixelShift =
         xyShift = getXyShift pixelShift
         xyShifts = [(dx,dy) | dy <- [-xyShift..xyShift], dx <- [-xyShift..xyShift]]
         
-
         getShiftedMask dxdy = regionPixelsAndCoords 
                                     img
                                     (applyXYShift dxdy)
                                     (`aboveThreshold` maskThreshold)
+
         getShiftedMirroredMask dxdy = regionPixelsAndCoords
                                             img
                                             (applyMirror w . applyXYShift dxdy)
@@ -95,6 +95,7 @@ applyPixelsMask mask@(MaskPixels mpcs) targetImage targetThreshold pixColorFluct
     in sum $ zipWith (cdMatch targetThreshold pixColorFluctuation) queryPixels targetPixels
 
 
+{-# INLINE cdMatch #-}
 cdMatch :: (Integral t, RealFrac z, Pixel p) => t -> z -> p -> p -> Int
 cdMatch th pxFluct p1 p2  = if p2gtth && pxGap < pxFluct then 1 else 0
     where
@@ -106,12 +107,10 @@ cdMatch th pxFluct p1 p2  = if p2gtth && pxGap < pxFluct then 1 else 0
         r2 = fromIntegral red2
         g2 = fromIntegral green2
         b2 = fromIntegral  blue2
-        p2gtth = red2 >= fromIntegral th
-              && green2 >= fromIntegral th
-              && blue2 >= fromIntegral th
+        p2gtth = red2 > fromIntegral th
+              && green2 > fromIntegral th
+              && blue2 > fromIntegral th
         
-
-
         (sbr1, br1, sbg1, bg1) = assignComps b1 r1 g1
         (sgb1, gb1, sgr1, gr1) = assignComps g1 b1 r1
         (srg1, rg1, srb1, rb1) = assignComps r1 g1 b1
