@@ -18,6 +18,7 @@
 # resolver: ./custom-snapshot.yaml
 # resolver: https://example.com/snapshots/2018-01-01.yaml
 resolver:  nightly-2021-09-18
+compiler: ghc-9.0.1
 
 packages:
 - .
@@ -44,6 +45,5 @@ flags:
 
 ghc-options:
   llvm-hs: -optcxx=-std=c++14 -optcxx=-lstdc++
-  accelerate-llvm: -optcxx=-std=c++14 -optcxx=-lstdc++
 
 allow-newer: true

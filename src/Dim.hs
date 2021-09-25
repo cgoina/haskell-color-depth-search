@@ -26,27 +26,32 @@
 module Dim where
 
 import Data.Kind ( Type )
-import Data.Singletons.TH ( genSingletons )
-import GHC.TypeLits (Nat)
-
-$(genSingletons ([''Nat]))
-
--- $(singletons [d|
---   data Nat = Zero | Succ Nat
---   pred :: Nat -> Nat
---   pred Zero = Zero
---   pred (Succ n) = n
---   |])
+import Data.Singletons.TH ( singletons
+                          , SingI(sing) )
+import GHC.TypeLits (Nat, KnownNat)
 
 
-data N = Z | S N
+$(singletons [d|
+    data Dims :: Nat -> Nat -> Type where
+        D :: Dims r c
+    |])
 
 
-data SSNat :: N -> Type where
-    SNatZero :: SSNat 'Z
-    SNatSucc :: SSNat n -> SSNat ('S n)
+-- mkDims :: (forall r c. KnownNat r, KnownNat c) => r -> c -> Dims r c
+-- mkDims rows cols = D (fromSing rows) (fromSing cols)
 
--- data Dims (rows :: Nat) (cols :: Nat) = D
+-- data SDims :: Nat -> Nat -> Type where
+--     SDims :: SNat r -> SNat c -> SDims r c
+
+
+
+-- size :: SDims r c -> Dims r c -> (r, c)
+-- size sng d = 
+--     let (rows, cols) = SDims rows cols
+--     in (fromSing rows, fromSing cols)
+
+
+-- mkDims :: (KnownNat r, KnownNat c) => r -> c -> Dims r c
 
 -- data SDims rows cols = SDims rows cols
 
