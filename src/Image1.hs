@@ -32,6 +32,11 @@ instance Functor (Image w h) where
     fmap f img@(UnsafeImage ps) = UnsafeImage $ fmap f ps
 
 
+instance KnownNat w, KnownNat h => Applicative (Image w h) where
+    pure = replicate
+    fs <*> xs = (\(f, x) -> f x) <$> zipImage fs xs
+
+
 replicatePixel :: forall w h p. (KnownNat w, KnownNat h) => p -> Image w h p
 replicatePixel p = UnsafeImage $ V.replicate (w1*h1) p
   where
