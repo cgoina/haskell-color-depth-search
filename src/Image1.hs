@@ -21,13 +21,9 @@ import Control.Applicative ( Applicative(liftA2) )
 import Data.Finite
 import Data.Kind (Type)
 import Data.Proxy (Proxy(..))
-import Data.Singletons (SomeSing(..), Sing, SingI, toSing, withSingI)
-import Data.Singletons.TH ( genSingletons, singletons, withSing )
 import qualified Data.Vector as V
-import Data.Coerce (Coercible, coerce)
-import GHC.TypeNats (Nat, KnownNat, natVal, someNatVal)
+import GHC.TypeNats (Nat, KnownNat, natVal)
 
-$(genSingletons [''Nat])
 
 class Pixel p where
     type PixelComponent p :: *
@@ -104,24 +100,6 @@ unsafeIndex img@(UnsafeImage ps) i = ps V.! i
 
 makeImage :: forall w h p. (KnownNat w, KnownNat h) => Int -> Int -> V.Vector p -> Image w h p
 makeImage x y = makeImageWithFinite_ (finite (fromIntegral x)) (finite (fromIntegral y))
-
-
-withVect
-  :: Nat
-  -> Nat
-  -> V.Vector p
-  -> (forall (x :: Nat) (y :: Nat). (SingI x, SingI y) => Image x y p -> k)
-  -> k
-withVect x y ps f =
-    case toSing y of
-        SomeSing (sy :: Sing m) -> withSingI sy $
-            case toSing x of
-                SomeSing (sx :: Sing n) -> withSingI sx $ f (makeImageWithSing_ sx sy ps)
-
-
-makeImageWithSing_ :: Sing w -> Sing h -> V.Vector p -> Image w h p
-makeImageWithSing_ _ _ = UnsafeImage
-
 
 makeImageWithFinite_ :: Finite w -> Finite h -> V.Vector p -> Image w h p
 makeImageWithFinite_ x y = UnsafeImage
