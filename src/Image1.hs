@@ -11,10 +11,11 @@
 
 module Image1 where
 
+import Control.Applicative ( Applicative(liftA2) )
 import Data.Finite
 import Data.Kind (Type)
-import Data.Proxy (Proxy)
-import GHC.TypeNats (Nat)
+import Data.Proxy (Proxy(..))
+import GHC.TypeNats (Nat, KnownNat, natVal)
 import qualified Data.Vector as V
 
 class Pixel p where
@@ -38,6 +39,15 @@ instance (KnownNat w, KnownNat h) => Applicative (Image w h) where
     fs <*> xs = (\(f, x) -> f x) <$> zipImage fs xs
 
 
+instance (KnownNat w, KnownNat h, Num p) => Num (Image w h p) where
+  (+) = liftA2 (+)
+  (-) = liftA2 (-)
+  (*) = liftA2 (*)
+  abs = fmap abs
+  signum = fmap signum
+  fromInteger i = pure $ fromInteger i
+
+
 replicatePixel :: forall w h p. (KnownNat w, KnownNat h) => p -> Image w h p
 replicatePixel p = UnsafeImage $ V.replicate (w1*h1) p
   where
@@ -54,3 +64,12 @@ dims img = (w1, h1)
   where
     w1 = fromIntegral (natVal (Proxy @w))
     h1 = fromIntegral (natVal (Proxy @h))
+
+pixelAt :: forall w h p. (KnownNat w, KnownNat h) => Image w h p
+                                                  -> Finite w
+                                                  -> Finite h
+                                                  -> p
+pixelAt img@(UnsafeImage ps) x y = ps V.! (w * y' + x')
+    where (w,_) = dims img
+          x' = fromIntegral (getFinite x)
+          y' = fromIntegral (getFinite y)
