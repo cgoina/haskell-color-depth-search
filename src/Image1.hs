@@ -59,17 +59,32 @@ zipImage :: Image w h a -> Image w h b -> Image w h (a, b)
 zipImage (UnsafeImage xs) (UnsafeImage ys) = UnsafeImage (V.zip xs ys)
 
 
-dims :: forall w h p. (KnownNat w, KnownNat h) => Image w h p -> (Int,Int)
+dims :: forall w h p. (KnownNat w, KnownNat h) => Image w h p -> (Finite w, Finite h)
 dims img = (w1, h1)
   where
-    w1 = fromIntegral (natVal (Proxy @w))
-    h1 = fromIntegral (natVal (Proxy @h))
+    w1 = finite $ fromIntegral (natVal (Proxy @w))
+    h1 = finite $ fromIntegral (natVal (Proxy @h))
+
+
+width :: forall w h p. (KnownNat w, KnownNat h) => Image w h p -> Finite w
+width = fst . dims
+
+
+height :: forall w h p. (KnownNat w, KnownNat h) => Image w h p -> Finite h
+height = snd . dims
+
 
 pixelAt :: forall w h p. (KnownNat w, KnownNat h) => Image w h p
                                                   -> Finite w
                                                   -> Finite h
                                                   -> p
-pixelAt img@(UnsafeImage ps) x y = ps V.! (w * y' + x')
-    where (w,_) = dims img
-          x' = fromIntegral (getFinite x)
-          y' = fromIntegral (getFinite y)
+pixelAt img x y = 
+    let w = fromIntegral (getFinite (width img))
+        x' = fromIntegral (getFinite x)
+        y' = fromIntegral (getFinite y)
+        i = (w * y' + x')
+    in unsafeIndex img i
+
+{-# INLINE unsafeIndex #-}
+unsafeIndex :: Image w h p -> Int -> p
+unsafeIndex img@(UnsafeImage ps) i = ps V.! i
