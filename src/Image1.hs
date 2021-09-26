@@ -40,7 +40,7 @@ replicatePixel p = UnsafeImage $ V.replicate (w1*h1) p
 
 
 zipImage :: Image w h a -> Image w h b -> Image w h (a, b)
-zipImage (UnsafeImage xs) (UnsafeImage ys) = UnsafeMkVec (V.zip xs ys)
+zipImage (UnsafeImage xs) (UnsafeImage ys) = UnsafeImage (V.zip xs ys)
 
 
 dims :: forall w h p. (KnownNat w, KnownNat h) => Image w h p -> (Int,Int)
