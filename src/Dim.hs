@@ -1,59 +1,45 @@
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE DefaultSignatures #-}
 {-# LANGUAGE EmptyCase #-}
-{-# LANGUAGE ExistentialQuantification #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
-{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE KindSignatures #-}
-{-# LANGUAGE NoCUSKs #-}
-{-# LANGUAGE NoNamedWildCards #-}
-{-# LANGUAGE NoStarIsType #-}
+{-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RankNTypes #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE StandaloneKindSignatures #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE UndecidableInstances #-}
 
+
 {-# OPTIONS_GHC -ddump-splices #-}
+{-# OPTIONS_GHC -fprint-potential-instances #-}
 
 module Dim where
 
-import Data.Kind ( Type )
-import Data.Singletons.TH ( singletons
-                          , SingI(sing) )
-import GHC.TypeLits (Nat, KnownNat)
+import Data.Kind (Type)
+import Data.Proxy
+import Data.Singletons.TH ( genSingletons, singletons, withSing )
+
+import Data.Singletons ( Sing, SingI
+                       , fromSing, sing, singByProxy )
+
+import GHC.TypeLits ( KnownNat, natVal )
 
 
 $(singletons [d|
-    data Dims :: Nat -> Nat -> Type where
+    data Dims :: Type -> Type -> Type where
         D :: Dims r c
     |])
 
 
--- mkDims :: (forall r c. KnownNat r, KnownNat c) => r -> c -> Dims r c
--- mkDims rows cols = D (fromSing rows) (fromSing cols)
+mkDims :: SDims d -> Dims r c
+mkDims _ = D
 
--- data SDims :: Nat -> Nat -> Type where
---     SDims :: SNat r -> SNat c -> SDims r c
+-- getDims :: (forall r c. SingI r, SingI c) => Dims r c -> r
+-- getDims d = rval
+--             where rval = fromSing d
+            
 
-
-
--- size :: SDims r c -> Dims r c -> (r, c)
--- size sng d = 
---     let (rows, cols) = SDims rows cols
---     in (fromSing rows, fromSing cols)
-
-
--- mkDims :: (KnownNat r, KnownNat c) => r -> c -> Dims r c
-
--- data SDims rows cols = SDims rows cols
-
--- width :: cols. SNat cols => SDims rpws cols -> cols
--- width dims = 

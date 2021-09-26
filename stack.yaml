@@ -44,6 +44,6 @@ flags:
     llvm-with-rtti: false
 
 ghc-options:
-  llvm-hs: -optcxx=-std=c++14 -optcxx=-lstdc++
+  llvm-hs: -optcxx=-std=c++14
 
 allow-newer: true
