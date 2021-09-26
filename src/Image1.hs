@@ -128,5 +128,5 @@ withVect x y ps f =
                 SomeSing (sx :: Sing n) -> withSingI sx $ f (makeImage_ sx sy ps)
 
 
--- makeImage :: Finite w -> Finite h -> V.Vector p -> Image x y p
--- makeImage x y ps = withVect x y ps id
+makeImage :: Finite w -> Finite h -> V.Vector p -> Image x y p
+makeImage x y ps = withVect x y ps id
