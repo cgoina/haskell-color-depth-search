@@ -96,12 +96,14 @@ pixelAt img x y =
         i = (w * y' + x')
     in unsafeIndex img i
 
+
 {-# INLINE unsafeIndex #-}
 unsafeIndex :: Image w h p -> Int -> p
 unsafeIndex img@(UnsafeImage ps) i = ps V.! i
 
-makeImage_ :: Sing w -> Sing h -> V.Vector p -> Image w h p
-makeImage_ _ _ = UnsafeImage
+
+makeImage :: forall w h p. (KnownNat w, KnownNat h) => Int -> Int -> V.Vector p -> Image w h p
+makeImage x y = makeImageWithFinite_ (finite (fromIntegral x)) (finite (fromIntegral y))
 
 
 withVect
@@ -114,11 +116,12 @@ withVect x y ps f =
     case toSing y of
         SomeSing (sy :: Sing m) -> withSingI sy $
             case toSing x of
-                SomeSing (sx :: Sing n) -> withSingI sx $ f (makeImage_ sx sy ps)
+                SomeSing (sx :: Sing n) -> withSingI sx $ f (makeImageWithSing_ sx sy ps)
 
 
-makeImage :: Finite w -> Finite h -> V.Vector p -> Image w h p
-makeImage x y = UnsafeImage
+makeImageWithSing_ :: Sing w -> Sing h -> V.Vector p -> Image w h p
+makeImageWithSing_ _ _ = UnsafeImage
 
-makeImage1 :: forall w h p. (KnownNat w, KnownNat h) => Int -> Int -> V.Vector p -> Image w h p
-makeImage1 x y = makeImage (finite (fromIntegral x)) (finite (fromIntegral y))
+
+makeImageWithFinite_ :: Finite w -> Finite h -> V.Vector p -> Image w h p
+makeImageWithFinite_ x y = UnsafeImage
