@@ -1,12 +1,18 @@
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE EmptyCase #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GADTs #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneKindSignatures #-}
+{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
 
+{-# OPTIONS_GHC -ddump-splices #-}
 {-# OPTIONS_GHC -fprint-potential-instances #-}
 
 module Image1 where
@@ -15,8 +21,13 @@ import Control.Applicative ( Applicative(liftA2) )
 import Data.Finite
 import Data.Kind (Type)
 import Data.Proxy (Proxy(..))
-import GHC.TypeNats (Nat, KnownNat, natVal)
+import Data.Singletons (SomeSing(..), Sing, SingI, toSing, withSingI)
+import Data.Singletons.TH ( genSingletons, singletons, withSing )
 import qualified Data.Vector as V
+import Data.Coerce (Coercible, coerce)
+import GHC.TypeNats (Nat, KnownNat, natVal, someNatVal)
+
+$(genSingletons [''Nat])
 
 class Pixel p where
     type PixelComponent p :: *
@@ -78,7 +89,7 @@ pixelAt :: forall w h p. (KnownNat w, KnownNat h) => Image w h p
                                                   -> Finite w
                                                   -> Finite h
                                                   -> p
-pixelAt img x y = 
+pixelAt img x y =
     let w = fromIntegral (getFinite (width img))
         x' = fromIntegral (getFinite x)
         y' = fromIntegral (getFinite y)
@@ -88,3 +99,34 @@ pixelAt img x y =
 {-# INLINE unsafeIndex #-}
 unsafeIndex :: Image w h p -> Int -> p
 unsafeIndex img@(UnsafeImage ps) i = ps V.! i
+
+makeImage_ :: Sing w -> Sing h -> V.Vector p -> Image w h p
+makeImage_ _ _ = UnsafeImage
+
+
+-- makeImage :: forall w h p. (KnownNat w, KnownNat h) => Int
+--                                                     -> Int
+--                                                     -> V.Vector p
+--                                                     -> Image w h p
+-- makeImage x y ps =
+--     case toSing (intToNat y) of
+--         SomeSing (sy :: Sing m) -> withSingI sy $
+--             case toSing (intToNat x) of
+--                 SomeSing (sx :: Sing n) -> withSingI sx $ makeImage_ @m @n ps
+
+
+withVect
+  :: Nat
+  -> Nat
+  -> V.Vector p
+  -> (forall (x :: Nat) (y :: Nat). (SingI x, SingI y) => Image x y p -> k)
+  -> k
+withVect x y ps f =
+    case toSing y of
+        SomeSing (sy :: Sing m) -> withSingI sy $
+            case toSing x of
+                SomeSing (sx :: Sing n) -> withSingI sx $ f (makeImage_ sx sy ps)
+
+
+-- makeImage :: Finite w -> Finite h -> V.Vector p -> Image x y p
+-- makeImage x y ps = withVect x y ps id

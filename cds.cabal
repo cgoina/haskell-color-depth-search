@@ -31,7 +31,6 @@ library
       ColorDepthSearch.Accelerate
       ColorDepthSearch.Internal
       ColorDepthSearch.Naive
-      Dim
       Image
       Image1
       ImageIO
