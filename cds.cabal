@@ -34,6 +34,7 @@ library
       Image
       Image1
       ImageIO
+      ImageIO1
       ImageProcessing
   other-modules:
       Paths_cds

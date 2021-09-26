@@ -15,7 +15,12 @@
 {-# OPTIONS_GHC -ddump-splices #-}
 {-# OPTIONS_GHC -fprint-potential-instances #-}
 
-module Image1 where
+module Image1 ( Pixel(..)
+              , Image
+              , makeImage
+              , width
+              , height
+              ) where
 
 import Control.Applicative ( Applicative(liftA2) )
 import Data.Finite
