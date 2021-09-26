@@ -32,11 +32,15 @@ instance Functor (Image w h) where
     fmap f img@(UnsafeImage ps) = UnsafeImage $ fmap f ps
 
 
-replicate :: forall w h p. (KnownNat w, KnownNat h) => p -> Image w h p
-replicate p = UnsafeImage $ V.replicate (w1*h1) p
+replicatePixel :: forall w h p. (KnownNat w, KnownNat h) => p -> Image w h p
+replicatePixel p = UnsafeImage $ V.replicate (w1*h1) p
   where
     w1 = fromIntegral (natVal (Proxy @w))
     h1 = fromIntegral (natVal (Proxy @h))
+
+
+zipImage :: Image w h a -> Image w h b -> Image w h (a, b)
+zipImage (UnsafeImage xs) (UnsafeImage ys) = UnsafeMkVec (V.zip xs ys)
 
 
 dims :: forall w h p. (KnownNat w, KnownNat h) => Image w h p -> (Int,Int)
