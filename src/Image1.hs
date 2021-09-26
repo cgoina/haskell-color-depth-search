@@ -11,9 +11,10 @@
 
 module Image1 where
 
+import Data.Finite
 import Data.Kind (Type)
-import Data.Proxy
-import GHC.TypeNats
+import Data.Proxy (Proxy)
+import GHC.TypeNats (Nat)
 import qualified Data.Vector as V
 
 class Pixel p where
