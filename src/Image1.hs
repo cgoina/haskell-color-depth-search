@@ -104,17 +104,6 @@ makeImage_ :: Sing w -> Sing h -> V.Vector p -> Image w h p
 makeImage_ _ _ = UnsafeImage
 
 
--- makeImage :: forall w h p. (KnownNat w, KnownNat h) => Int
---                                                     -> Int
---                                                     -> V.Vector p
---                                                     -> Image w h p
--- makeImage x y ps =
---     case toSing (intToNat y) of
---         SomeSing (sy :: Sing m) -> withSingI sy $
---             case toSing (intToNat x) of
---                 SomeSing (sx :: Sing n) -> withSingI sx $ makeImage_ @m @n ps
-
-
 withVect
   :: Nat
   -> Nat
@@ -128,5 +117,8 @@ withVect x y ps f =
                 SomeSing (sx :: Sing n) -> withSingI sx $ f (makeImage_ sx sy ps)
 
 
-makeImage :: Finite w -> Finite h -> V.Vector p -> Image x y p
-makeImage x y ps = withVect x y ps id
+makeImage :: Finite w -> Finite h -> V.Vector p -> Image w h p
+makeImage x y = UnsafeImage
+
+makeImage1 :: forall w h p. (KnownNat w, KnownNat h) => Int -> Int -> V.Vector p -> Image w h p
+makeImage1 x y = makeImage (finite (fromIntegral x)) (finite (fromIntegral y))
