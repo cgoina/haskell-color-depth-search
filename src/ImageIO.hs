@@ -53,11 +53,11 @@ readImage fp = do
             return (Right (makeImage w h pf))
             where img = JP.convertRGB8 dimg
                   (w, h) = (JP.imageWidth img, JP.imageHeight img)
-                  pf = \x y -> fromCodecPixel (JP.pixelAt img x y)
+                  pf x y = fromCodecPixel (JP.pixelAt img x y)
 
 
 writeImageAsPng :: (Image s p, CodecPixel p) => FilePath -> s p -> IO ()
 writeImageAsPng filePath img = JP.writePng filePath $
     JP.generateImage pf (width img) (height img)
     where
-        pf = \x y -> toCodecPixel (pixelAt img x y)
+        pf x y = toCodecPixel (pixelAt img x y)

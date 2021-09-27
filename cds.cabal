@@ -36,6 +36,7 @@ library
       ImageIO
       ImageIO1
       ImageProcessing
+      Pixel
   other-modules:
       Paths_cds
   hs-source-dirs:

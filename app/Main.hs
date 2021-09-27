@@ -1,3 +1,7 @@
+{-# LANGUAGE ConstraintKinds #-}
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE RankNTypes #-}
+
 module Main where
 
 import Args ( parseCmdArgs
@@ -8,12 +12,14 @@ import Args ( parseCmdArgs
             , maskThreshold
             , dataThreshold
             , pixColorFluctuation )
-import BoxedImage ( BoxedImage )
-import ImageProcessing (clearRegion)
-import ColorDepthSearch ( ShiftOptions
-                        , calculateBestScore
-                        , createQueryMasks )
-import qualified ImageIO as IIO(readImage)
+import Image1 ( Image, dims )
+import Pixel ( RGB8Pixel )
+-- import ImageProcessing (clearRegion)
+-- import ColorDepthSearch ( ShiftOptions
+--                         , calculateBestScore
+--                         , createQueryMasks )
+import qualified ImageIO1 as IIO(readImage)
+import GHC.TypeNats (KnownNat, Nat)
 
 main :: IO ()
 main = do
@@ -27,19 +33,20 @@ main = do
             case timg of
                 Left err -> putStrLn err
                 Right target ->
-                    let score = cds query (maskThreshold cdsOpts) (not (noMaskMirroring cdsOpts)) (shiftOption cdsOpts) target (dataThreshold cdsOpts) (pixColorFluctuation cdsOpts)
-                    in print score
+                    let d = dims query
+                    in print d
     return ()
 
 
-readImageFromFile :: FilePath -> IO (Either String (BoxedImage Int))
+readImageFromFile :: FilePath
+                  -> IO (Either String (Image 145 3 RGB8Pixel))
 readImageFromFile = IIO.readImage
 
 
-cds :: BoxedImage Int -> Int -> Bool -> ShiftOptions -> BoxedImage Int -> Int -> Double -> Int
-cds query queryThreshold mirror xyShift target targetThreshold pxFluctuation =
-    let isLabelRegion = \x y -> x < 330 && y < 100 || x >= 950 && y < 85
-        unlabeledQuery = clearRegion query isLabelRegion
-        unlabeledTarget = clearRegion target isLabelRegion
-        cdsMasks = createQueryMasks unlabeledQuery queryThreshold mirror xyShift
-    in calculateBestScore cdsMasks unlabeledTarget targetThreshold pxFluctuation
+-- cds :: BoxedImage Int -> Int -> Bool -> ShiftOptions -> BoxedImage Int -> Int -> Double -> Int
+-- cds query queryThreshold mirror xyShift target targetThreshold pxFluctuation =
+--     let isLabelRegion = \x y -> x < 330 && y < 100 || x >= 950 && y < 85
+--         unlabeledQuery = clearRegion query isLabelRegion
+--         unlabeledTarget = clearRegion target isLabelRegion
+--         cdsMasks = createQueryMasks unlabeledQuery queryThreshold mirror xyShift
+--     in calculateBestScore cdsMasks unlabeledTarget targetThreshold pxFluctuation
