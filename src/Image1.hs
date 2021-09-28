@@ -20,7 +20,8 @@
 module Image1 ( Image, UnsafeBoxedImage(UnsafeBoxedImage)
               , makeUnsafeBoxedImage
               , fromUnsafeImage
-              , width, height, dims
+              , unsafePixelAt, unsafeGetAt
+              , width, height
               ) where
 
 import Control.Applicative ( Applicative(liftA2) )
@@ -52,6 +53,14 @@ instance (TN.KnownNat w, TN.KnownNat h) => Applicative (Image w h) where
     fs <*> xs = (\(f, x) -> f x) <$> zipImage fs xs
 
 
+instance Foldable (Image w h) where
+    foldr f acc img@(UnsafeImage _ _ ps) = foldr f acc ps
+
+
+instance Traversable (Image w h) where
+    traverse f img@(UnsafeImage x y ps) = UnsafeImage x y <$> traverse f ps
+
+
 instance (TN.KnownNat w, TN.KnownNat h, Num p) => Num (Image w h p) where
   (+) = liftA2 (+)
   (-) = liftA2 (-)
@@ -72,26 +81,24 @@ zipImage :: Image w h a -> Image w h b -> Image w h (a, b)
 zipImage img1@(UnsafeImage wa ha xs) img2@(UnsafeImage wb hb ys) = UnsafeImage wa ha (V.zip xs ys)
 
 
-{-# INLINE dims #-}
-dims :: Image w h p -> (Int, Int)
-dims img@(UnsafeImage w h _) = (w, h)
-
-
 {-# INLINE unsafePixelAt #-}
-unsafePixelAt :: Image w h p -> Int -> Int -> p
+unsafePixelAt :: Image w h p
+              -> Int -- x
+              -> Int -- y
+              -> p
 unsafePixelAt img@(UnsafeImage w _ _) x y = unsafeGetAt img (w * y + x)
 
 
 {-# INLINE unsafeGetAt #-}
-unsafeGetAt :: Image w h p -> Int -> p
+unsafeGetAt :: Image w h p
+            -> Int -- | pixel index
+            -> p
 unsafeGetAt img@(UnsafeImage _ _ ps) i = ps V.! i
 
 
 makeImageWithSing_ :: Sing w -> Sing h -> V.Vector p -> Image w h p
 makeImageWithSing_ dx dy = 
     let
-        -- pw = (Proxy :: Proxy w)
-        -- ph = (Proxy :: Proxy h)
         w' = fromIntegral (fromSing dx)
         h' = fromIntegral (fromSing dy)
     in UnsafeImage w' h'

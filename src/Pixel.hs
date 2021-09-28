@@ -28,6 +28,21 @@ instance Pixel RGB8Pixel where
     clear p = RGB8Pixel 0
 
 
+instance Num RGB8Pixel where
+  (+) p1 p2 = let (r1, g1, b1) = toRGB p1
+                  (r2, g2, b2) = toRGB p2
+              in fromRGB (r1+r2) (g1+g2) (b1+b2)
+  (-) p1 p2 = let (r1, g1, b1) = toRGB p1
+                  (r2, g2, b2) = toRGB p2
+              in fromRGB (r1-r2) (g1-g2) (b1-b2)
+  (*) p1 p2 = let (r1, g1, b1) = toRGB p1
+                  (r2, g2, b2) = toRGB p2
+              in fromRGB (r1*r2) (g1*g2) (b1*b2)
+  abs _ = RGB8Pixel 0 -- !!!!!!!!
+  signum _ = RGB8Pixel 0
+  fromInteger i = RGB8Pixel 0
+
+
 fromRGB :: Word8 -> Word8 -> Word8 -> RGB8Pixel
 fromRGB r g b =
     let p = (fromIntegral r `shiftL` 16) .|. (fromIntegral g `shiftL` 8) .|. fromIntegral b

@@ -12,13 +12,13 @@ import Args ( parseCmdArgs
             , maskThreshold
             , dataThreshold
             , pixColorFluctuation )
-import Image1 ( Image, dims )
-import Pixel ( RGB8Pixel )
--- import ImageProcessing (clearRegion)
+import Image1 ( Image )
+import Pixel ( Pixel(clear), RGB8Pixel )
+import ImageProcessing (clearRegion)
 -- import ColorDepthSearch ( ShiftOptions
 --                         , calculateBestScore
 --                         , createQueryMasks )
-import qualified ImageIO1 as IIO(readImage)
+import qualified ImageIO1 as IIO(readImage, writeImageAsPng)
 import GHC.TypeNats (KnownNat, Nat)
 
 main :: IO ()
@@ -32,14 +32,13 @@ main = do
         Right query ->
             case timg of
                 Left err -> putStrLn err
-                Right target ->
-                    let d = dims query
-                    in print d
+                Right target -> do
+                    IIO.writeImageAsPng "ttq.png" query
+                    IIO.writeImageAsPng "ttt.png" target
     return ()
 
 
-readImageFromFile :: FilePath
-                  -> IO (Either String (Image w h RGB8Pixel))
+readImageFromFile :: FilePath -> IO (Either String (Image w h RGB8Pixel))
 readImageFromFile = IIO.readImage
 
 

@@ -36,6 +36,7 @@ library
       ImageIO
       ImageIO1
       ImageProcessing
+      ImageProcessing1
       Pixel
   other-modules:
       Paths_cds
