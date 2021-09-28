@@ -28,7 +28,7 @@ import Data.Finite
 import Data.Kind (Type)
 import Data.Proxy (Proxy(..))
 import Data.Singletons ( SomeSing(..), Sing, SingI
-                       , toSing, withSingI, withSing)
+                       , fromSing, toSing, withSingI, withSing, SingKind (fromSing))
 
 import qualified Data.Vector as V
 import qualified GHC.TypeNats as TN ( Nat, KnownNat
@@ -37,11 +37,14 @@ import qualified GHC.TypeLits.Singletons as TL ( SNat )
 
 
 data Image (w::TN.Nat) (h::TN.Nat) p where
-    UnsafeImage :: { pixels :: !(V.Vector p) } -> Image w h p
+    UnsafeImage :: {
+        width :: Int
+      , height :: Int
+      , pixels :: !(V.Vector p) } -> Image w h p
 
 
 instance Functor (Image w h) where
-    fmap f img@(UnsafeImage ps) = UnsafeImage $ fmap f ps
+    fmap f img@(UnsafeImage cols rows ps) = UnsafeImage cols rows $ fmap f ps
 
 
 instance (TN.KnownNat w, TN.KnownNat h) => Applicative (Image w h) where
@@ -59,57 +62,39 @@ instance (TN.KnownNat w, TN.KnownNat h, Num p) => Num (Image w h p) where
 
 
 replicatePixel :: forall w h p. (TN.KnownNat w, TN.KnownNat h) => p -> Image w h p
-replicatePixel p = UnsafeImage $ V.replicate (w1*h1) p
+replicatePixel p = UnsafeImage w1 h1 $ V.replicate (w1*h1) p
   where
     w1 = fromIntegral (TN.natVal (Proxy @w))
     h1 = fromIntegral (TN.natVal (Proxy @h))
 
 
 zipImage :: Image w h a -> Image w h b -> Image w h (a, b)
-zipImage (UnsafeImage xs) (UnsafeImage ys) = UnsafeImage (V.zip xs ys)
+zipImage img1@(UnsafeImage wa ha xs) img2@(UnsafeImage wb hb ys) = UnsafeImage wa ha (V.zip xs ys)
 
 
-dims :: forall w h p. (TN.KnownNat w, TN.KnownNat h) => Image w h p -> (Int, Int)
-dims img = (w1, h1)
-  where
-    w1 = fromIntegral (TN.natVal (Proxy @w))
-    h1 = fromIntegral (TN.natVal (Proxy @h))
+{-# INLINE dims #-}
+dims :: Image w h p -> (Int, Int)
+dims img@(UnsafeImage w h _) = (w, h)
 
 
-width :: forall w h p. ( TN.KnownNat w
-                       , TN.KnownNat h) => Image w h p -> Int
-width = fst . dims
+{-# INLINE unsafePixelAt #-}
+unsafePixelAt :: Image w h p -> Int -> Int -> p
+unsafePixelAt img@(UnsafeImage w _ _) x y = unsafeGetAt img (w * y + x)
 
 
-height :: forall w h p. ( TN.KnownNat w
-                        , TN.KnownNat h) => Image w h p -> Int
-height = snd . dims
-
-
-pixelAt :: forall w h p. ( TN.KnownNat w
-                         , TN.KnownNat h ) => Image w h p
-                                            -> Finite w
-                                            -> Finite h
-                                            -> p
-pixelAt img x y =
-    let w = fromIntegral (getFinite (width img))
-        x' = fromIntegral (getFinite x)
-        y' = fromIntegral (getFinite y)
-        i = (w * y' + x')
-    in unsafeIndex img i
-
-
-{-# INLINE unsafeIndex #-}
-unsafeIndex :: Image w h p -> Int -> p
-unsafeIndex img@(UnsafeImage ps) i = ps V.! i
-
-
-makeImageWithFinite_ :: Finite w -> Finite h -> V.Vector p -> Image w h p
-makeImageWithFinite_ x y = UnsafeImage
+{-# INLINE unsafeGetAt #-}
+unsafeGetAt :: Image w h p -> Int -> p
+unsafeGetAt img@(UnsafeImage _ _ ps) i = ps V.! i
 
 
 makeImageWithSing_ :: Sing w -> Sing h -> V.Vector p -> Image w h p
-makeImageWithSing_ _ _ = UnsafeImage
+makeImageWithSing_ dx dy = 
+    let
+        -- pw = (Proxy :: Proxy w)
+        -- ph = (Proxy :: Proxy h)
+        w' = fromIntegral (fromSing dx)
+        h' = fromIntegral (fromSing dy)
+    in UnsafeImage w' h'
 
 
 fromUnsafeImage_
@@ -123,14 +108,14 @@ fromUnsafeImage_ img@(UnsafeBoxedImage x y ps) f =
             withSingI xVal $
                 let yVal = toSing (fromIntegral y)
                 in case (yVal :: SomeSing TN.Nat) of
-                    SomeSing (yVal :: Sing h) -> 
+                    SomeSing (yVal :: Sing h) ->
                         withSingI yVal $
                             let safeImg = makeImageWithSing_ xVal yVal ps
                             in f safeImg
 
 
-fromUnsafeImage :: UnsafeBoxedImage p -> (forall w h. (TN.KnownNat w, TN.KnownNat h) => Image w h p)
-fromUnsafeImage img = fromUnsafeImage_ img (\(UnsafeImage ps) -> UnsafeImage ps)
+fromUnsafeImage :: UnsafeBoxedImage p -> Image w h p
+fromUnsafeImage img = fromUnsafeImage_ img (\(UnsafeImage w' h' ps) -> UnsafeImage w' h' ps)
 
 
 data UnsafeBoxedImage p = UnsafeBoxedImage {
@@ -144,5 +129,4 @@ makeUnsafeBoxedImage :: Int -> Int -> (Int -> Int -> p) -> UnsafeBoxedImage p
 makeUnsafeBoxedImage w h pf =
     let pxs = [pf x y | y <- [0..h-1], x <- [0..w-1]]
         ps = V.fromList pxs
-
     in UnsafeBoxedImage w h ps

@@ -1,4 +1,3 @@
-{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE RankNTypes #-}
 
 module ImageIO1 where
@@ -22,8 +21,8 @@ instance CodecPixel RGB8Pixel where
                      in JP.PixelRGB8 r g b
 
 
-readImage :: forall w h p. (KnownNat w, KnownNat h, CodecPixel p) => FilePath
-                                    -> IO (Either String (Image w h p))
+readImage :: forall w h p. CodecPixel p => FilePath
+                                        -> IO (Either String (Image w h p))
 readImage fp = do
     eimg <- JP.readImage fp
     case eimg of

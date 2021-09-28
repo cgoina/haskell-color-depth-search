@@ -1,5 +1,5 @@
-{-# LANGUAGE ConstraintKinds #-}
 {-# LANGUAGE DataKinds #-}
+{-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE RankNTypes #-}
 
 module Main where
@@ -39,7 +39,7 @@ main = do
 
 
 readImageFromFile :: FilePath
-                  -> IO (Either String (Image 145 3 RGB8Pixel))
+                  -> IO (Either String (Image w h RGB8Pixel))
 readImageFromFile = IIO.readImage
 
 
