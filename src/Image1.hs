@@ -17,11 +17,12 @@
 {-# OPTIONS_GHC -ddump-splices #-}
 {-# OPTIONS_GHC -fprint-potential-instances #-}
 
-module Image1 ( Image, UnsafeBoxedImage(UnsafeBoxedImage)
-              , makeUnsafeBoxedImage
-              , fromUnsafeImage
-              , unsafePixelAt, unsafeGetAt
-              , width, height
+module Image1 ( Image
+              , height
+              , imap
+              , makeImage
+              , unsafeGetAt, unsafePixelAt
+              , width
               ) where
 
 import Control.Applicative ( Applicative(liftA2) )
@@ -77,6 +78,12 @@ replicatePixel p = UnsafeImage w1 h1 $ V.replicate (w1*h1) p
     h1 = fromIntegral (TN.natVal (Proxy @h))
 
 
+imap :: (Int -> Int -> a -> b) -> Image w h a -> Image w h b
+imap f img@(UnsafeImage maxX maxY ps) = UnsafeImage maxX maxY $ V.imap f' ps
+    where f' i = let (y,x) = (i `divMod` maxX)
+                 in f x y
+
+
 zipImage :: Image w h a -> Image w h b -> Image w h (a, b)
 zipImage img1@(UnsafeImage wa ha xs) img2@(UnsafeImage wb hb ys) = UnsafeImage wa ha (V.zip xs ys)
 
@@ -121,8 +128,14 @@ fromUnsafeImage_ img@(UnsafeBoxedImage x y ps) f =
                             in f safeImg
 
 
-fromUnsafeImage :: UnsafeBoxedImage p -> Image w h p
-fromUnsafeImage img = fromUnsafeImage_ img (\(UnsafeImage w' h' ps) -> UnsafeImage w' h' ps)
+makeImage :: Int
+          -> Int
+          -> (Int -> Int -> p)
+          -> Image w h p
+makeImage w h pf =
+    let pxs = [pf x y | y <- [0..h-1], x <- [0..w-1]]
+        img = UnsafeBoxedImage w h (V.fromList pxs)
+    in fromUnsafeImage_ img (\(UnsafeImage w' h' ps) -> UnsafeImage w' h' ps)
 
 
 data UnsafeBoxedImage p = UnsafeBoxedImage {
@@ -130,10 +143,3 @@ data UnsafeBoxedImage p = UnsafeBoxedImage {
   , imgHeight :: !Int
   , imgPixels :: !(V.Vector p)
 }
-
-
-makeUnsafeBoxedImage :: Int -> Int -> (Int -> Int -> p) -> UnsafeBoxedImage p
-makeUnsafeBoxedImage w h pf =
-    let pxs = [pf x y | y <- [0..h-1], x <- [0..w-1]]
-        ps = V.fromList pxs
-    in UnsafeBoxedImage w h ps

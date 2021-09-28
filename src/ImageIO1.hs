@@ -5,8 +5,8 @@ module ImageIO1 where
 import qualified Codec.Picture as JP
 import GHC.TypeNats ( KnownNat )
 
-import Image1( Image, makeUnsafeBoxedImage
-             , fromUnsafeImage, unsafePixelAt, width, height )
+import Image1( Image, makeImage
+             , unsafePixelAt, width, height )
 import Pixel( Pixel, RGB8Pixel, fromRGB, toRGB )
 
 
@@ -29,11 +29,10 @@ readImage fp = do
     case eimg of
         Left err -> return (Left $ "Could not read image: " ++ err)
         Right dimg ->
-            return (Right (fromUnsafeImage unsafeImg))
+            return (Right (makeImage w h pf))
             where img = JP.convertRGB8 dimg
                   (w, h) = (JP.imageWidth img, JP.imageHeight img)
                   pf x y = fromCodecPixel (JP.pixelAt img x y)
-                  unsafeImg = makeUnsafeBoxedImage w h pf
 
 
 writeImageAsPng :: forall w h p. CodecPixel p => FilePath -> Image w h p -> IO ()

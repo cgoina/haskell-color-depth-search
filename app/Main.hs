@@ -14,12 +14,13 @@ import Args ( parseCmdArgs
             , pixColorFluctuation )
 import Image1 ( Image )
 import Pixel ( Pixel(clear), RGB8Pixel )
-import ImageProcessing (clearRegion)
+import ImageProcessing1 (horizontalMirror)
 -- import ColorDepthSearch ( ShiftOptions
 --                         , calculateBestScore
 --                         , createQueryMasks )
 import qualified ImageIO1 as IIO(readImage, writeImageAsPng)
 import GHC.TypeNats (KnownNat, Nat)
+
 
 main :: IO ()
 main = do
@@ -34,7 +35,7 @@ main = do
                 Left err -> putStrLn err
                 Right target -> do
                     IIO.writeImageAsPng "ttq.png" query
-                    IIO.writeImageAsPng "ttt.png" target
+                    IIO.writeImageAsPng "ttt.png" (horizontalMirror query)
     return ()
 
 
