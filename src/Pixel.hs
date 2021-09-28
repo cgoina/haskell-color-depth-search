@@ -10,9 +10,12 @@ import Data.Bits ((.&.), (.|.), shiftL, shiftR)
 class Pixel p where
     type PixelComponent p :: *
 
+    emptyPixel :: p
+
     pixelComponents :: p -> [PixelComponent p]
 
     clear :: p -> p
+    clear p = emptyPixel
 
 
 newtype RGB8Pixel = RGB8Pixel Int
@@ -25,7 +28,7 @@ instance Pixel RGB8Pixel where
         let (r, g, b) = toRGB p
         in [r, g, b]
 
-    clear p = RGB8Pixel 0
+    emptyPixel = RGB8Pixel 0
 
 
 instance Num RGB8Pixel where
@@ -38,9 +41,11 @@ instance Num RGB8Pixel where
   (*) p1 p2 = let (r1, g1, b1) = toRGB p1
                   (r2, g2, b2) = toRGB p2
               in fromRGB (r1*r2) (g1*g2) (b1*b2)
-  abs _ = RGB8Pixel 0 -- !!!!!!!!
-  signum _ = RGB8Pixel 0
-  fromInteger i = RGB8Pixel 0
+  abs p = let (r, g, b) = toRGB p
+          in fromRGB (abs r) (abs g) (abs b)
+  signum p = let (r, g, b) = toRGB p
+             in fromRGB (signum r) (signum g) (signum b)
+  fromInteger = RGB8Pixel . fromIntegral
 
 
 fromRGB :: Word8 -> Word8 -> Word8 -> RGB8Pixel
