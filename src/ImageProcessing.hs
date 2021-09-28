@@ -20,7 +20,7 @@ shift img dx dy = makeImage w h pf
     where
         w = width img
         h = height img
-        pf = \x y ->
+        pf x y =
             let shiftedX = x + dx
                 shiftedY = y + dy
             in

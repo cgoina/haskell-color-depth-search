@@ -14,7 +14,7 @@ import Args ( parseCmdArgs
             , pixColorFluctuation )
 import Image1 ( Image )
 import Pixel ( Pixel(clear), RGB8Pixel )
-import ImageProcessing1 (horizontalMirror)
+import ImageProcessing1 ( clearRegion, horizontalMirror )
 -- import ColorDepthSearch ( ShiftOptions
 --                         , calculateBestScore
 --                         , createQueryMasks )
@@ -35,7 +35,7 @@ main = do
                 Left err -> putStrLn err
                 Right target -> do
                     IIO.writeImageAsPng "ttq.png" query
-                    IIO.writeImageAsPng "ttt.png" (horizontalMirror query)
+                    IIO.writeImageAsPng "ttt.png" (horizontalMirror (clearRegion query isLabelRegion))
     return ()
 
 
@@ -50,3 +50,7 @@ readImageFromFile = IIO.readImage
 --         unlabeledTarget = clearRegion target isLabelRegion
 --         cdsMasks = createQueryMasks unlabeledQuery queryThreshold mirror xyShift
 --     in calculateBestScore cdsMasks unlabeledTarget targetThreshold pxFluctuation
+
+
+isLabelRegion :: Int -> Int -> Bool
+isLabelRegion x y = x < 330 && y < 100 || x >= 950 && y < 85
