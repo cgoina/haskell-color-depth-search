@@ -19,19 +19,21 @@
 
 module Image1 ( Image
               , height
-              , imap
+              , imap, imapROI
               , makeImage
               , unsafeGetAt, unsafePixelAt
               , width
               ) where
 
 import Control.Applicative ( Applicative(liftA2) )
+import Control.Monad ( forM )
 import Data.Finite
-import Data.Kind (Type)
-import Data.Proxy (Proxy(..))
+import Data.Functor.Identity (Identity(..))
+import Data.Kind ( Type )
+import Data.Proxy ( Proxy(..) )
 import Data.Singletons ( SomeSing(..), Sing, SingI
                        , fromSing, toSing, withSingI, withSing, SingKind (fromSing))
-
+import Data.Traversable ( for )
 import qualified Data.Vector as V
 import qualified GHC.TypeNats as TN ( Nat, KnownNat
                                      , natVal )
@@ -55,10 +57,12 @@ instance (TN.KnownNat w, TN.KnownNat h) => Applicative (Image w h) where
 
 
 instance Foldable (Image w h) where
+    -- foldr :: (a -> b -> b) -> b -> t a -> b
     foldr f acc img@(UnsafeImage _ _ ps) = foldr f acc ps
 
 
 instance Traversable (Image w h) where
+    -- traverse :: Applicative f => (a -> f b) -> t a -> f (t b)
     traverse f img@(UnsafeImage x y ps) = UnsafeImage x y <$> traverse f ps
 
 
@@ -84,6 +88,21 @@ imap f img@(UnsafeImage maxX maxY ps) = UnsafeImage maxX maxY $ V.imap f' ps
                  in f x y
 
 
+imapROI :: (Int -> Int -> a -> b)
+        -> b -- value outside the ROI
+        -> Image w h a
+        -> (Int, Int) -- (startX, startY)
+        -> (Int, Int) -- (endX, endY)
+        -> Image w h b
+imapROI f b img@(UnsafeImage maxX maxY ps) (startX, startY) (endX, endY) = UnsafeImage maxX maxY $ V.imap f' ps
+    where f' i = if x >= startX && x < endX && y >= startY && y < endY then
+                    -- if it's inside the window apply the function
+                    f (x-startX) (y-startY)
+                 else
+                    const b
+                 where (y,x) = i `divMod` maxX
+
+
 zipImage :: Image w h a -> Image w h b -> Image w h (a, b)
 zipImage img1@(UnsafeImage wa ha xs) img2@(UnsafeImage wb hb ys) = UnsafeImage wa ha (V.zip xs ys)
 
@@ -104,7 +123,7 @@ unsafeGetAt img@(UnsafeImage _ _ ps) i = ps V.! i
 
 
 makeImageWithSing_ :: Sing w -> Sing h -> V.Vector p -> Image w h p
-makeImageWithSing_ dx dy = 
+makeImageWithSing_ dx dy =
     let
         w' = fromIntegral (fromSing dx)
         h' = fromIntegral (fromSing dy)

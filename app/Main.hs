@@ -12,9 +12,9 @@ import Args ( parseCmdArgs
             , maskThreshold
             , dataThreshold
             , pixColorFluctuation )
-import Image1 ( Image )
+import Image1 ( Image, imapROI, width, height )
 import Pixel ( Pixel(clear), RGB8Pixel )
-import ImageProcessing1 ( clearRegion, horizontalMirror )
+import ImageProcessing1 ( clearRegion, horizontalMirror, maxFilter )
 -- import ColorDepthSearch ( ShiftOptions
 --                         , calculateBestScore
 --                         , createQueryMasks )
@@ -35,7 +35,16 @@ main = do
                 Left err -> putStrLn err
                 Right target -> do
                     IIO.writeImageAsPng "ttq.png" query
-                    IIO.writeImageAsPng "ttt.png" (horizontalMirror (clearRegion query isLabelRegion))
+                    IIO.writeImageAsPng "ttt.png" 
+                        (maxFilter 
+                            20 
+                            (imapROI 
+                                (\x y a -> a)
+                                0
+                                (clearRegion query isLabelRegion)
+                                (160, 160)
+                                (width query - 60, height query -60)
+                            ))
     return ()
 
 

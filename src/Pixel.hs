@@ -7,7 +7,7 @@ module Pixel ( Pixel(..), RGB8Pixel, fromRGB, toRGB ) where
 import Data.Word ( Word8 )
 import Data.Bits ((.&.), (.|.), shiftL, shiftR)
 
-class Pixel p where
+class (Ord p, Eq p) => Pixel p where
     type PixelComponent p :: *
 
     emptyPixel :: p
@@ -18,7 +18,7 @@ class Pixel p where
     clear p = emptyPixel
 
 
-newtype RGB8Pixel = RGB8Pixel Int
+newtype RGB8Pixel = RGB8Pixel Int deriving (Ord, Eq)
 
 
 instance Pixel RGB8Pixel where

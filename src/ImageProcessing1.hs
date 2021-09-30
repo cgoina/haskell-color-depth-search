@@ -1,10 +1,12 @@
+{-# LANGUAGE QuantifiedConstraints #-}
 {-# LANGUAGE RankNTypes #-}
 
-module ImageProcessing1 ( clearRegion, horizontalMirror )
+
+module ImageProcessing1 ( clearRegion, horizontalMirror, maxFilter )
 where
 
 import Image1 ( Image, height, imap
-              , unsafePixelAt, width )
+              , unsafeGetAt , unsafePixelAt, width )
 import Pixel ( Pixel(clear) )
 
 
@@ -29,8 +31,7 @@ shift :: forall w h p. Pixel p => Image w h p
                                -> Image w h p
 shift img dx dy = imap f img
     where
-        w = width img
-        h = height img
+        (w, h) = (width img, height img)
         f x y p =
             let shiftedX = x + dx
                 shiftedY = y + dy
@@ -39,3 +40,72 @@ shift img dx dy = imap f img
                     unsafePixelAt img shiftedX shiftedY
                 else
                     clear p
+
+
+type Coord = (Int, Int)
+
+type Dims = (Int, Int)
+
+instance (Num a, Num b) => Num (a, b) where
+    (x, y) + (x', y') = (x+x', y+y')
+    (x, y) - (x', y') = (x-x', y-y')
+    (x, y) * (x', y') = (x*x', y*y')
+    abs (x,y) = (abs x, abs y)
+    signum (x, y) = (signum x, signum y)
+    fromInteger x = (fromInteger x, fromInteger x)
+
+
+maxFilter :: forall w h r p. (Ord p, RealFrac r) => r -> Image w h p -> Image w h p
+maxFilter r img = imap f img
+    where
+        (w, h) = (width img, height img)
+        filterCoords = neighborCoords r
+        f x y p = let filterPixels = map (unsafeGetAt img) (absNeighborIndexes (x, y) (w, h) filterCoords)
+                  in maximum filterPixels
+
+
+absNeighborIndexes :: Coord -> Dims -> [Coord] -> [Int]
+absNeighborIndexes p sz@(w, h) coords = map toIndex (filter checkBoundaries (map (p +) coords))
+    where
+        checkBoundaries :: Coord -> Bool
+        checkBoundaries (x, y) = x >= 0 && x < w && y >= 0 && y < h
+        toIndex (x, y) = y * w + x
+
+
+neighborCoords :: (RealFrac r) => r -> [Coord]
+neighborCoords = expandAllCoords . circleRadii
+
+circleRadii :: RealFrac r => r -> [Coord]
+circleRadii r =
+    let radius = adjustRadius r
+        r2 = floor (radius * radius) + 1
+        kernelRadius = isqrt (radius * radius + 1)
+        adjustRadius :: RealFrac a => a -> a
+        adjustRadius r
+            | r >= 1.5 && r < 1.75 = 1.75
+            | r >= 2.5 && r < 2.85 = 2.85
+            | otherwise = r
+        isqrt :: RealFrac a => a -> Int
+        isqrt v = floor $ sqrt (realToFrac v + 1e-10)
+    in
+        concatMap
+            (\i ->
+                if i == 0 then [(0, kernelRadius)] else (
+                   let dx = i
+                       dy = isqrt (fromIntegral (r2 - i * i))
+                   in
+                       [(-dx, dy), (dx, dy)])
+            )
+            [0..kernelRadius]
+
+
+expandCoords :: Coord -> [Coord]
+expandCoords (dx, dy) =
+    if dy == 0 then
+        [(dx, dy)]
+    else
+        [(dx, dy') | dy' <- [-dy..dy] ]
+
+
+expandAllCoords :: [Coord] -> [Coord]
+expandAllCoords = concatMap expandCoords

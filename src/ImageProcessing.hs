@@ -48,9 +48,8 @@ maxFilter r img = makeImage w h pf
     where
         (w, h) = (width img, height img)
         filterCoords = neighborCoords r
-        pf = \x y ->
-            let filterPixels = map (getAt img) (absNeighborIndexes (x, y) (w, h) filterCoords)
-            in maximum filterPixels
+        pf x y = let filterPixels = map (getAt img) (absNeighborIndexes (x, y) (w, h) filterCoords)
+                 in maximum filterPixels
 
 
 absNeighborIndexes :: Coord -> Dims -> [Coord] -> [Int]
