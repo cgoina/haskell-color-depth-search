@@ -1,76 +1,173 @@
-{-# LANGUAGE MultiParamTypeClasses #-}
-
-module Image where
-
-import Data.Word ( Word8 )
-import Data.Bits (Bits, (.&.), (.|.), shiftL, shiftR)
-
-
-type RedC = Word8
-type GreenC = Word8
-type BlueC = Word8
-
-
-class Pixel p where
-    rgb :: p -> (RedC, GreenC, BlueC)
-
-    makePixel :: RedC -> GreenC -> BlueC -> p
-
-    clear :: p -> p
-    clear p = makePixel 0 0 0
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE EmptyCase #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE GADTs #-}
+{-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE PolyKinds #-}
+{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneKindSignatures #-}
+{-# LANGUAGE TypeApplications #-}
+{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeInType #-}
+{-# LANGUAGE TypeOperators #-}
 
 
-toNum :: (Pixel p) => p -> Int
-toNum p = 
-    let (r,g,b) = rgb p
-    in (fromIntegral r `shiftL` 16) .|. (fromIntegral g `shiftL` 8) .|. fromIntegral b
+{-# OPTIONS_GHC -ddump-splices #-}
+{-# OPTIONS_GHC -fprint-potential-instances #-}
+
+module Image ( Image
+             , height
+             , imap, imapROI
+             , makeImage
+             , ShiftOptions(..)
+             , unsafeGetAt, unsafePixelAt
+             , width
+             ) where
+
+import Control.Applicative ( Applicative(liftA2) )
+import Control.Monad ( forM )
+import Data.Kind ( Type )
+import Data.Proxy ( Proxy(..) )
+import Data.Singletons ( SomeSing(..), Sing, SingI
+                       , fromSing, toSing, withSingI, withSing, SingKind (fromSing))
+import Data.Traversable ( for )
+import qualified Data.Vector as V
+import qualified GHC.TypeNats as TN ( Nat, KnownNat
+                                     , natVal )
+import qualified GHC.TypeLits.Singletons as TL ( SNat )
 
 
-aboveThreshold :: (Pixel p, Integral a) => p -> a -> Bool
-aboveThreshold p th = let (r, g, b) = rgb p
-                      in r > fromIntegral th && g > fromIntegral th && b > fromIntegral th
+data ShiftOptions = None | One | Two
+                    deriving Show
 
 
-class (Functor s, Pixel p) => Image s p where
-    width :: s p -> Int
-
-    height :: s p -> Int
-
-    pixelAt :: s p -> Int -> Int -> p
-    pixelAt img x y = getAt img (fromXyToIndex (x,y) (width img))
-
-    getAt :: s p -> Int -> p
-    getAt img i = uncurry (pixelAt img) (fromIndexToXY i (width img))
-
-    size :: s p -> Int
-    size img = width img * height img
-
-    makeImage :: Int -> Int -> (Int -> Int -> p) -> s p
+getXyShift :: ShiftOptions -> Int
+getXyShift None = 0
+getXyShift One = 1
+getXyShift Two = 2
 
 
-fromXyToIndex :: (Int,Int) -> Int -> Int
-fromXyToIndex (x, y) w = y * w + x
+data Image (w::TN.Nat) (h::TN.Nat) p where
+    UnsafeImage :: {
+        width :: Int
+      , height :: Int
+      , pixels :: !(V.Vector p) } -> Image w h p
 
 
-fromIndexToXY :: Int -> Int -> (Int,Int)
-fromIndexToXY i w = let (y,x) = i `divMod` w in (x,y)
+instance Functor (Image w h) where
+    fmap f img@(UnsafeImage cols rows ps) = UnsafeImage cols rows $ fmap f ps
 
 
--- return pixel coordinates (indexes) and values of the pixels that satisfy the predicate
-regionPixelsAndCoords :: Image s p => s p -> ((Int,Int) -> (Int,Int)) -> (p -> Bool) -> [(Int, p)]
-regionPixelsAndCoords img coordTransform cond =
-    let w = width img
-        h = height img
-        outOfBounds :: (Int,Int) -> Bool -- check if coordinates are out of bounds
-        outOfBounds (x, y) = x < 0 || y < 0 || x >= w || y >= h
-        pis = map (`fromXyToIndex` w) $ 
-              filter 
-                (not . outOfBounds)  
-                [coordTransform (x, y) | y <- [0 .. h - 1], x <- [0 .. w - 1]]
-        pcs = map (getAt img) pis
-    in
-        filter (cond . snd) (zip pis pcs)
+instance (TN.KnownNat w, TN.KnownNat h) => Applicative (Image w h) where
+    pure = replicatePixel
+    fs <*> xs = (\(f, x) -> f x) <$> zipImage fs xs
 
 
-imagePixels :: Image s p => s p -> [p]
-imagePixels img = map (getAt img) [0..(size img - 1)]
+instance Foldable (Image w h) where
+    -- foldr :: (a -> b -> b) -> b -> t a -> b
+    foldr f acc img@(UnsafeImage _ _ ps) = foldr f acc ps
+
+
+instance Traversable (Image w h) where
+    -- traverse :: Applicative f => (a -> f b) -> t a -> f (t b)
+    traverse f img@(UnsafeImage x y ps) = UnsafeImage x y <$> traverse f ps
+
+
+instance (TN.KnownNat w, TN.KnownNat h, Num p) => Num (Image w h p) where
+  (+) = liftA2 (+)
+  (-) = liftA2 (-)
+  (*) = liftA2 (*)
+  abs = fmap abs
+  signum = fmap signum
+  fromInteger i = pure $ fromInteger i
+
+
+replicatePixel :: forall w h p. (TN.KnownNat w, TN.KnownNat h) => p -> Image w h p
+replicatePixel p = UnsafeImage w1 h1 $ V.replicate (w1*h1) p
+  where
+    w1 = fromIntegral (TN.natVal (Proxy @w))
+    h1 = fromIntegral (TN.natVal (Proxy @h))
+
+
+imap :: (Int -> Int -> a -> b) -> Image w h a -> Image w h b
+imap f img@(UnsafeImage maxX maxY ps) = UnsafeImage maxX maxY $ V.imap f' ps
+    where f' i = let (y,x) = (i `divMod` maxX)
+                 in f x y
+
+
+imapROI :: (Int -> Int -> a -> b)
+        -> b -- value outside the ROI
+        -> Image w h a
+        -> (Int, Int) -- (startX, startY)
+        -> (Int, Int) -- (endX, endY)
+        -> Image w h b
+imapROI f b img@(UnsafeImage maxX maxY ps) (startX, startY) (endX, endY) = UnsafeImage maxX maxY $ V.imap f' ps
+    where f' i = if x >= startX && x < endX && y >= startY && y < endY then
+                    -- if it's inside the window apply the function
+                    f (x-startX) (y-startY)
+                 else
+                    const b
+                 where (y,x) = i `divMod` maxX
+
+
+zipImage :: Image w h a -> Image w h b -> Image w h (a, b)
+zipImage img1@(UnsafeImage wa ha xs) img2@(UnsafeImage wb hb ys) = UnsafeImage wa ha (V.zip xs ys)
+
+
+{-# INLINE unsafePixelAt #-}
+unsafePixelAt :: Image w h p
+              -> Int -- x
+              -> Int -- y
+              -> p
+unsafePixelAt img@(UnsafeImage w _ _) x y = unsafeGetAt img (w * y + x)
+
+
+{-# INLINE unsafeGetAt #-}
+unsafeGetAt :: Image w h p
+            -> Int -- | pixel index
+            -> p
+unsafeGetAt img@(UnsafeImage _ _ ps) i = ps V.! i
+
+
+makeImageWithSing_ :: Sing w -> Sing h -> V.Vector p -> Image w h p
+makeImageWithSing_ dx dy =
+    let
+        w' = fromIntegral (fromSing dx)
+        h' = fromIntegral (fromSing dy)
+    in UnsafeImage w' h'
+
+
+fromUnsafeImage_
+  :: UnsafeBoxedImage p
+  -> (forall w h. (SingI w, SingI h) => Image w h p -> k)
+  -> k
+fromUnsafeImage_ img@(UnsafeBoxedImage x y ps) f =
+    let xVal = toSing (fromIntegral x)
+    in case (xVal :: SomeSing TN.Nat) of
+        SomeSing (xVal :: Sing w) ->
+            withSingI xVal $
+                let yVal = toSing (fromIntegral y)
+                in case (yVal :: SomeSing TN.Nat) of
+                    SomeSing (yVal :: Sing h) ->
+                        withSingI yVal $
+                            let safeImg = makeImageWithSing_ xVal yVal ps
+                            in f safeImg
+
+
+makeImage :: Int
+          -> Int
+          -> (Int -> Int -> p)
+          -> Image w h p
+makeImage w h pf =
+    let pxs = [pf x y | y <- [0..h-1], x <- [0..w-1]]
+        img = UnsafeBoxedImage w h (V.fromList pxs)
+    in fromUnsafeImage_ img (\(UnsafeImage w' h' ps) -> UnsafeImage w' h' ps)
+
+
+data UnsafeBoxedImage p = UnsafeBoxedImage {
+    imgWidth :: !Int
+  , imgHeight :: !Int
+  , imgPixels :: !(V.Vector p)
+}
