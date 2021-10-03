@@ -1,10 +1,13 @@
+{-# LANGUAGE RankNTypes #-}
+
 module ImageIO where
 
 import qualified Codec.Picture as JP
-import Data.Bits ((.&.), (.|.), shiftL, shiftR)
+import GHC.TypeNats ( KnownNat )
 
-import Image( Image(..),
-              Pixel(..) )
+import Image ( Image, makeImage
+             , unsafePixelAt, height, width )
+import Pixel( Pixel, RGB8Pixel, fromRGB, toRGB )
 
 
 class Pixel p => CodecPixel p where
@@ -12,39 +15,15 @@ class Pixel p => CodecPixel p where
     toCodecPixel :: p -> JP.PixelRGB8
 
 
-instance Pixel JP.PixelRGB8 where
-    rgb p@(JP.PixelRGB8 r g b) = (r, g, b)
+instance CodecPixel RGB8Pixel where
+    fromCodecPixel p@(JP.PixelRGB8 r g b) = fromRGB r g b
 
-    clear = JP.colorMap (const 0)
-
-    makePixel = JP.PixelRGB8
-
-
-instance CodecPixel JP.PixelRGB8 where
-    fromCodecPixel = id
-
-    toCodecPixel = id
-
-
-instance Pixel Int where
-    rgb p = let r = fromIntegral $ (p `shiftR` 16) .&. 0xFF
-                g = fromIntegral $ (p `shiftR` 8) .&. 0xFF
-                b = fromIntegral $ p .&. 0xFF
-            in (r, g, b)
-
-    makePixel r g b = (fromIntegral r `shiftL` 16) .|. (fromIntegral g `shiftL` 8) .|. fromIntegral b
-
-    clear p = 0
-
-
-instance CodecPixel Int where
-    fromCodecPixel p@(JP.PixelRGB8 r g b) = makePixel r g b
-
-    toCodecPixel p = let (r, g, b) = rgb p
+    toCodecPixel p = let (r, g, b) = toRGB p
                      in JP.PixelRGB8 r g b
 
 
-readImage :: (Image s p, CodecPixel p) => FilePath -> IO (Either String (s p))
+readImage :: forall w h p. CodecPixel p => FilePath
+                                        -> IO (Either String (Image w h p))
 readImage fp = do
     eimg <- JP.readImage fp
     case eimg of
@@ -56,8 +35,8 @@ readImage fp = do
                   pf x y = fromCodecPixel (JP.pixelAt img x y)
 
 
-writeImageAsPng :: (Image s p, CodecPixel p) => FilePath -> s p -> IO ()
+writeImageAsPng :: forall w h p. CodecPixel p => FilePath -> Image w h p -> IO ()
 writeImageAsPng filePath img = JP.writePng filePath $
     JP.generateImage pf (width img) (height img)
     where
-        pf x y = toCodecPixel (pixelAt img x y)
+        pf x y = toCodecPixel (unsafePixelAt img x y)

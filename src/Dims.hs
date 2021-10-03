@@ -1,74 +1,137 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE EmptyCase #-}
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE GADTs #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE KindSignatures #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE PolyKinds #-}
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE StandaloneKindSignatures #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeInType #-}
+{-# LANGUAGE TypeFamilyDependencies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE ViewPatterns #-}
 
 
 {-# OPTIONS_GHC -ddump-splices #-}
 {-# OPTIONS_GHC -fprint-potential-instances #-}
 
-module Dims ( Dims
-            , height
+module Dims ( Ix(..), Dims
             , makeDims
+            , height
             , width
             ) where
 
 import Data.Kind ( Type )
 import Data.Proxy ( Proxy(..) )
-import Data.Singletons ( SomeSing(..), Sing, SingI
-                       , fromSing, toSing, withSingI, withSing, SingKind (fromSing))
-import qualified GHC.TypeNats as TN ( Nat, KnownNat
-                                     , natVal )
-import qualified GHC.TypeLits.Singletons as TL ( SNat )
 
 
-data Dims (w::TN.Nat) (h::TN.Nat) where
-    D :: Int -> Int -> Dims w h
+import GHC.Natural
+
+import qualified GHC.TypeLits as TL ( Nat
+                                    , KnownNat
+                                    , SomeNat(..)
+                                    , natVal
+                                    , type (+) )
+
+import qualified GHC.TypeNats as TN ( someNatVal )
 
 
-width :: Dims w h -> Int
-width (D dx _) = dx
+data SNat n  = TL.KnownNat n => SNat
 
 
-height :: Dims w h -> Int
-height (D _ dy) = dy
+data SomeNat__ = forall n. SomeNat__ (SNat n)
 
 
-withSing_ :: Sing w -> Sing h -> Dims w h
-withSing_ dx dy =
-    let
-        w' = fromIntegral (fromSing dx)
-        h' = fromIntegral (fromSing dy)
-    in D w' h'
+pattern SomeNat_ :: SNat n -> TL.SomeNat
+pattern SomeNat_ x <- (\case TL.SomeNat (Proxy :: Proxy n) -> SomeNat__ (SNat :: SNat n) -> SomeNat__ x)
+  where
+    SomeNat_ (SNat :: SNat n) = TL.SomeNat (Proxy :: Proxy n)
+{-# COMPLETE SomeNat_ #-}
 
 
-fromUnsafeDims_
-  :: Int
-  -> Int
-  -> (forall w h. (SingI w, SingI h) => Dims w h -> k)
-  -> k
-fromUnsafeDims_ dx dy f =
-    let dxVal = toSing (fromIntegral dx)
-    in case (dxVal :: SomeSing TN.Nat) of
-        SomeSing (dxVal :: Sing w) ->
-            withSingI dxVal $
-                let dyVal = toSing (fromIntegral dy)
-                in case (dyVal :: SomeSing TN.Nat) of
-                    SomeSing (dyVal :: Sing h) ->
-                        withSingI dyVal $
-                            let safeDims = withSing_ dxVal dyVal
-                            in f safeDims
+pattern FromSNat :: SNat n -> Natural
+pattern FromSNat x <- ((`withSomeNat` SomeNat_) -> SomeNat_ x)
+  where
+    FromSNat = fromSNat
+{-# COMPLETE FromSNat #-}
+
+
+fromSNat :: SNat n -> Natural
+fromSNat x@SNat = fromInteger $ TL.natVal x
+
+
+toSNat :: forall n. TL.KnownNat n => Natural -> SNat n
+toSNat x = withSomeNat x $ const SNat
+
+
+withKnownNat :: SNat n -> (TL.KnownNat n => r) -> r
+withKnownNat SNat x = x
+
+
+withSomeNat :: Natural -> (forall n. SNat n -> r) -> r
+withSomeNat (TN.someNatVal->TL.SomeNat (Proxy :: Proxy n)) x = x (SNat :: SNat n)
+
+
+data Ix :: TL.Nat -> Type where
+    Ix :: Int -> Ix n
+    deriving (Show, Eq, Ord)
+
+toInt :: Ix n -> Int
+toInt (Ix v) = v
+
+
+fromInt :: Int -> Ix n
+fromInt v = withSomeNat sn (\x -> Ix v)
+    where
+        sn = fromIntegral v
+
+
+instance Num (Ix n) where
+  (+) = liftIndex2 (+)
+  (-) = liftIndex2 (-)
+  (*) = liftIndex2 (*)
+  abs = liftIndex abs
+  signum = liftIndex signum
+  fromInteger = pureIndex . fromInteger
+
+
+pureIndex :: Int -> Ix n
+pureIndex = fromInt
+
+
+extractIndex :: Ix n -> Int
+extractIndex = toInt
+
+liftIndex :: (Int -> Int) -> Ix a -> Ix b
+liftIndex f ix = pureIndex (f (toInt ix))
+
+
+liftIndex2 :: (Int -> Int -> Int) -> Ix a -> Ix b -> Ix c
+liftIndex2 f ixa ixb = pureIndex (f (toInt ixa) (toInt ixb))
+
+
+data Dims (w::TL.Nat) (h::TL.Nat) = D (Ix w) (Ix h)
+    deriving (Show, Eq, Ord)
+
+instance Num (Dims m n) where
+    (D m n) + (D m' n') = D (m+m') (n+n')
+    (D m n) - (D m' n') = D (m-m') (n-n')
+    (D m n) * (D m' n') = D (m*m') (n*n')
+    abs (D m n) = D (abs m) (abs n)
+    signum (D m n) = D (signum m) (signum n)
+    fromInteger n = D (fromInteger n) (fromInteger n)
 
 
 makeDims :: Int -> Int -> Dims w h
-makeDims dx dy = fromUnsafeDims_ dx dy (\(D dx' dy') -> D dx' dy')
+makeDims dx dy = D (pureIndex dx) (pureIndex dy)
+
+
+width :: Dims w h -> Int
+width (D dx _) = extractIndex dx
+
+
+height :: Dims w h -> Int
+height (D _ dy) = extractIndex dy

@@ -1,33 +1,45 @@
-module ImageProcessing where
-
-import Image ( Image(pixelAt, getAt, width, height, makeImage)
-             , Pixel(clear)
-             )
+{-# LANGUAGE QuantifiedConstraints #-}
+{-# LANGUAGE RankNTypes #-}
 
 
-clearRegion :: Image s p => s p -> (Int -> Int -> Bool) -> s p
-clearRegion img regionCond = makeImage (width img) (height img) (\x y -> if regionCond x y then clear (pixelAt img x y) else pixelAt img x y)
+module ImageProcessing ( clearRegion, horizontalMirror, maxFilter )
+where
+
+import Image ( Image, width, height, imap
+             , unsafeGetAt , unsafePixelAt )
+import Pixel ( Pixel(clear) )
 
 
-horizontalMirror :: Image s p => s p -> s p
-horizontalMirror img = makeImage w (height img) (\x y -> pixelAt img (w - x - 1) y)
+clearRegion :: forall w h p. Pixel p => Image w h p -> (Int -> Int -> Bool) -> Image w h p
+clearRegion img regionCond = imap f img
+    where f x y p = if regionCond x y then
+                        clear p
+                    else
+                        unsafePixelAt img x y
+
+
+horizontalMirror :: Image w h p -> Image w h p
+horizontalMirror img = imap f img
     where
         w = width img
+        f x y p = unsafePixelAt img (w - x - 1) y
 
 
-shift :: Image s p => s p -> Int -> Int -> s p
-shift img dx dy = makeImage w h pf
+shift :: forall w h p. Pixel p => Image w h p
+                               -> Int -- delta x
+                               -> Int -- delta y
+                               -> Image w h p
+shift img dx dy = imap f img
     where
-        w = width img
-        h = height img
-        pf x y =
+        (w, h) = (width img, height img)
+        f x y p =
             let shiftedX = x + dx
                 shiftedY = y + dy
             in
                 if shiftedX >= 0 && shiftedX < w && shiftedY >= 0 && shiftedY < h then
-                    pixelAt img shiftedX shiftedY
+                    unsafePixelAt img shiftedX shiftedY
                 else
-                    clear $ pixelAt img x y
+                    clear p
 
 
 type Coord = (Int, Int)
@@ -43,13 +55,13 @@ instance (Num a, Num b) => Num (a, b) where
     fromInteger x = (fromInteger x, fromInteger x)
 
 
-maxFilter :: (Ord p, RealFrac r, Image s p) => r -> s p -> s p
-maxFilter r img = makeImage w h pf
+maxFilter :: forall w h r p. (Ord p, RealFrac r) => r -> Image w h p -> Image w h p
+maxFilter r img = imap f img
     where
         (w, h) = (width img, height img)
         filterCoords = neighborCoords r
-        pf x y = let filterPixels = map (getAt img) (absNeighborIndexes (x, y) (w, h) filterCoords)
-                 in maximum filterPixels
+        f x y p = let filterPixels = map (unsafeGetAt img) (absNeighborIndexes (x, y) (w, h) filterCoords)
+                  in maximum filterPixels
 
 
 absNeighborIndexes :: Coord -> Dims -> [Coord] -> [Int]
