@@ -23,6 +23,7 @@
 
 module Dims ( Ix(..), Dims
             , Dim(..)
+            , DimN((:>))
             , makeDims
             , height
             , width
@@ -140,11 +141,11 @@ type family Dim (n :: TL.Nat) = r | r -> n where
   Dim n = DimN n
 
 
-instance Show (DimN 2) where
+instance {-# OVERLAPPING #-} Show (DimN 2) where
   showsPrec n (i :> j) = showsPrecWrapped n (shows i . (" :> " ++) . shows j)
 
 
-instance {-# OVERLAPPABLE #-} Show (Dim (n TL.- 1)) => Show (DimN n) where
+instance Show (Dim (n TL.- 1)) => Show (DimN n) where
   showsPrec n (i :> ix) = showsPrecWrapped n (shows i . (" :> " ++) . shows ix)
 
 
@@ -168,6 +169,12 @@ instance {-# OVERLAPPING #-} Ord (DimN 2) where
 
 instance Ord (Dim (n TL.- 1)) => Ord (DimN n) where
   compare (i1 :> ix1) (i2 :> ix2) = compare i1 i2 <> compare ix1 ix2
+
+
+instance Dimx Dim0 where
+    pureDim d = Dim0
+    liftDim f d = Dim0
+    liftDim2 f d d' = Dim0
 
 
 instance Dimx Dim1 where
