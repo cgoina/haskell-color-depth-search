@@ -18,7 +18,8 @@
 {-# OPTIONS_GHC -fprint-potential-instances #-}
 
 module Image ( Image
-             , dims, Image.width, Image.height
+             , dims
+             , Image.width, Image.height
              , imap, imapROI
              , makeImage
              , ShiftOptions(..)

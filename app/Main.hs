@@ -7,18 +7,19 @@ module Main where
 import Args ( parseCmdArgs
             , masksPaths
             , dataPaths
+            , maxFilterRadius
             , noMaskMirroring
             , shiftOption
             , maskThreshold
             , dataThreshold
             , pixColorFluctuation )
-import Image1 ( Image, imapROI, width, height )
+import Image ( Image, imapROI, width, height )
 import Pixel ( Pixel(clear), RGB8Pixel )
-import ImageProcessing1 ( clearRegion, horizontalMirror, maxFilter )
+import ImageProcessing ( clearRegion, horizontalMirror, maxFilter )
 -- import ColorDepthSearch ( ShiftOptions
 --                         , calculateBestScore
 --                         , createQueryMasks )
-import qualified ImageIO1 as IIO(readImage, writeImageAsPng)
+import qualified ImageIO as IIO(readImage, writeImageAsPng)
 import GHC.TypeNats (KnownNat, Nat)
 
 
@@ -37,7 +38,7 @@ main = do
                     IIO.writeImageAsPng "ttq.png" query
                     IIO.writeImageAsPng "ttt.png" 
                         (maxFilter 
-                            20 
+                            (maxFilterRadius cdsOpts)
                             (imapROI 
                                 (\x y a -> a)
                                 0
