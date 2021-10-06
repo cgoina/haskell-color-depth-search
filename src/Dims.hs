@@ -23,6 +23,7 @@
 
 module Dims ( Ix(..), Dims
             , Dim(..)
+            , pattern Dim2
             , DimN((:>))
             , makeDims
             , height
@@ -141,6 +142,10 @@ type family Dim (n :: TL.Nat) = r | r -> n where
   Dim n = DimN n
 
 
+pattern Dim2 :: Int -> Int -> Dim 2
+pattern Dim2 i2 i1 = i2 :> i1
+
+
 instance {-# OVERLAPPING #-} Show (DimN 2) where
   showsPrec n (i :> j) = showsPrecWrapped n (shows i . (" :> " ++) . shows j)
 
@@ -155,19 +160,19 @@ showsPrecWrapped n inner
   | otherwise = ('(':) . inner . (")" ++)
 
 
-instance {-# OVERLAPPING #-} Eq (DimN 2) where
+instance Eq (DimN 2) where
   (i1 :> j1) == (i2 :> j2) = i1 == i2 && j1 == j2
 
 
-instance Eq (Dim (n TL.- 1)) => Eq (DimN n) where
+instance {-# OVERLAPPABLE #-} Eq (Dim (n TL.- 1)) => Eq (DimN n) where
   (i1 :> ix1) == (i2 :> ix2) = i1 == i2 && ix1 == ix2
 
 
-instance {-# OVERLAPPING #-} Ord (DimN 2) where
+instance Ord (DimN 2) where
   compare (i1 :> j1) (i2 :> j2) = compare i1 i2 <> compare j1 j2
 
 
-instance Ord (Dim (n TL.- 1)) => Ord (DimN n) where
+instance {-# OVERLAPPABLE #-} Ord (Dim (n TL.- 1)) => Ord (DimN n) where
   compare (i1 :> ix1) (i2 :> ix2) = compare i1 i2 <> compare ix1 ix2
 
 
