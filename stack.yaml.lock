@@ -4,11 +4,11 @@
 #   https://docs.haskellstack.org/en/stable/lock_files
 
 snapshots:
-- original: nightly-2021-09-18
+- original: nightly-2021-10-12
   completed:
-    sha256: f5184f7aaede1ce0aa29ec8be072f916c3c1b1ba95772cc55cb6e1787fa0ef51
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/nightly/2021/9/18.yaml
-    size: 581696
+    sha256: 16f87f3537744b964b3d924e9e9a4a51fafdd93d31822ddd21a5663475f995ee
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/nightly/2021/10/12.yaml
+    size: 585552
 packages:
 - original:
     url: https://github.com/AccelerateHS/accelerate/archive/1ab75f1eb01a1b427563808057d46f29d99bb4dc.tar.gz
@@ -54,6 +54,13 @@ packages:
       sha256: 49c39bb5d120a14f475964b6337288590f12374e94471e6e637c4ca0f5553988
       size: 3377
     hackage: constraints-deriving-1.1.1.2@sha256:7e875b19b72920064e30ab722f01a7de2d4ee7840c2889c116297a4549262b72,4027
+- original:
+    hackage: newtype-0.2.2.0
+  completed:
+    pantry-tree:
+      sha256: e53d22dd191bfef5d9b9a05a9cf48e96067c22521937468445c171f3800810b4
+      size: 260
+    hackage: newtype-0.2.2.0@sha256:44435da250d96ab3a5a861425739f6af523495d1a3943f783df4b053b8a4c108,1354
 - original:
     subdir: llvm-hs
     url: https://github.com/llvm-hs/llvm-hs/archive/80e881257e356edea333b8da65eb46782a8d3b14.tar.gz

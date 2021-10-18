@@ -32,11 +32,13 @@ library:
     - constraints-deriving >=1.1.1.2
     - finite-typelits >= 0.1.4.2
     - JuicyPixels >= 3.3.5
+    - newtype >= 0.2.2.0
     - optparse-applicative >= 0.16
-    - repa >= 3.4.1.4
+    - reflection >= 2.1.8
     - singletons >= 3.0
     - singletons-th >= 3.0
     - singletons-base >= 3.0
+    - template-haskell >= 2.17.0.0
     - typenums >= 0.1.4
     - vector >= 0.12.3.0
 
@@ -48,7 +50,6 @@ executables:
       - -threaded
       - -rtsopts
       - -with-rtsopts=-N
-      - -O
     dependencies:
       - cds
 

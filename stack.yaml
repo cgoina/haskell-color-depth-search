@@ -17,7 +17,7 @@
 #
 # resolver: ./custom-snapshot.yaml
 # resolver: https://example.com/snapshots/2018-01-01.yaml
-resolver:  nightly-2021-09-18
+resolver:  nightly-2021-10-12
 compiler: ghc-9.0.1
 
 packages:
@@ -32,6 +32,7 @@ extra-deps:
     - accelerate-llvm
     - accelerate-llvm-native
 - constraints-deriving-1.1.1.2
+- newtype-0.2.2.0
 - github: llvm-hs/llvm-hs
   commit: 80e881257e356edea333b8da65eb46782a8d3b14
   subdirs:

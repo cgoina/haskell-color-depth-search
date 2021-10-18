@@ -10,7 +10,6 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE TypeInType #-}
 {-# LANGUAGE TypeOperators #-}
 
 
@@ -18,8 +17,7 @@
 {-# OPTIONS_GHC -fprint-potential-instances #-}
 
 module Image ( Image
-             , dims
-             , Image.width, Image.height
+             , width, height
              , imap, imapROI
              , makeImage
              , ShiftOptions(..)
@@ -29,16 +27,12 @@ module Image ( Image
 import Control.Applicative ( Applicative(liftA2) )
 import Data.Kind ( Type )
 import Data.Proxy ( Proxy(..) )
+import Data.Reflection
 import qualified Data.Vector as V
-
-import qualified GHC.TypeLits as TL ( Nat
-                                    , KnownNat
-                                    , natVal )
-
-import Dims ( Dims
-            , makeDims
-            , width
-            , height )
+import qualified GHC.TypeLits as TL
+import qualified GHC.TypeNats as TN
+import GHC.Natural
+import GHC.Num (integerToNatural)
 
 
 data ShiftOptions = None | One | Two
@@ -50,30 +44,28 @@ getXyShift None = 0
 getXyShift One = 1
 getXyShift Two = 2
 
+-- data Image sh (n::TL.Nat) p = Image (Dim (n::TL.Nat)) (V.Vector p)
 
 data Image :: TL.Nat -> TL.Nat -> Type -> Type where
-    Image :: Dims w h -> V.Vector p -> Image w h p
-
-
-dims :: Image w h p -> Dims w h
-dims (Image sz _) = sz
+    UnsafeImage :: Natural -> Natural -> V.Vector p -> Image w h p
 
 
 width :: Image w h p -> Int
-width (Image sz _) = Dims.width sz
+width (UnsafeImage w _ _) = fromIntegral $ naturalToInteger w
+{-# INLINE width #-}
 
 
 height :: Image w h p -> Int
-height (Image sz _) = Dims.height sz
-
+height (UnsafeImage _ h _) = fromIntegral $ naturalToInteger h
+{-# INLINE height #-}
 
 pixels :: Image w h p -> V.Vector p
-pixels (Image _ ps) = ps
-
+pixels (UnsafeImage _ _ ps) = ps
+{-# INLINE pixels #-}
 
 
 instance Functor (Image w h) where
-    fmap f img@(Image sz ps) = Image sz $ fmap f ps
+    fmap f img@(UnsafeImage w h ps) = UnsafeImage w h $ fmap f ps
 
 
 instance (TL.KnownNat w, TL.KnownNat h) => Applicative (Image w h) where
@@ -83,15 +75,15 @@ instance (TL.KnownNat w, TL.KnownNat h) => Applicative (Image w h) where
 
 instance Foldable (Image w h) where
     -- foldr :: (a -> b -> b) -> b -> t a -> b
-    foldr f acc img@(Image _ ps) = foldr f acc ps
+    foldr f acc img@(UnsafeImage _ _ ps) = foldr f acc ps
 
 
 instance Traversable (Image w h) where
     -- traverse :: Applicative f => (a -> f b) -> t a -> f (t b)
-    traverse f img@(Image sz ps) = Image sz <$> traverse f ps
+    traverse f img@(UnsafeImage w h ps) = UnsafeImage w h <$> traverse f ps
 
 
-instance (TL.KnownNat w, TL.KnownNat h, Num p) => Num (Image w h p) where
+instance (Applicative (Image w h), Num p) => Num (Image w h p) where
   (+) = liftA2 (+)
   (-) = liftA2 (-)
   (*) = liftA2 (*)
@@ -100,17 +92,28 @@ instance (TL.KnownNat w, TL.KnownNat h, Num p) => Num (Image w h p) where
   fromInteger i = pure $ fromInteger i
 
 
-replicatePixel :: forall w h p. (TL.KnownNat w, TL.KnownNat h) => p -> Image w h p
-replicatePixel p = Image sz $ V.replicate (Dims.width sz * Dims.height sz) p
-  where
-    w1 = fromIntegral (TL.natVal (Proxy @w))
-    h1 = fromIntegral (TL.natVal (Proxy @h))
-    sz = makeDims @w @h w1 h1
+replicatePixel :: forall w h p. (TL.KnownNat w, TL.KnownNat h) =>  p -> Image w h p
+replicatePixel p = UnsafeImage w h $ V.replicate sz p
+    where
+        w = integerToNatural $ TL.natVal (Proxy @w)
+        h = integerToNatural $ TL.natVal (Proxy @h)
+        sz = fromIntegral $ naturalToInteger (w * h)
+
+
+zipImage :: Image w h a -> Image w h b -> Image w h (a, b)
+zipImage img1@(UnsafeImage w1' h1' _) img2 =
+    let (w1,h1) = (width img1, height img1)
+        (w2,h2) = (width img2, height img2)
+        xs = pixels img1
+        ys = pixels img2
+
+    in  if (w1,h1) == (w2,h2) then UnsafeImage w1' h1' $ V.zip xs ys
+        else error "The two images must have the same shape"
 
 
 imap :: (Int -> Int -> a -> b) -> Image w h a -> Image w h b
-imap f img@(Image sz ps) = Image sz $ V.imap f' ps
-    where f' i = let (y,x) = (i `divMod` Dims.width sz)
+imap f img@(UnsafeImage w h ps) = UnsafeImage w h $ V.imap f' ps
+    where f' i = let (y,x) = i `divMod` width img
                  in f x y
 
 
@@ -120,38 +123,35 @@ imapROI :: (Int -> Int -> a -> b)
         -> (Int, Int) -- (startX, startY)
         -> (Int, Int) -- (endX, endY)
         -> Image w h b
-imapROI f b img@(Image sz ps) (startX, startY) (endX, endY) = Image sz $ V.imap f' ps
+imapROI f b img@(UnsafeImage w h ps) (startX, startY) (endX, endY) = UnsafeImage w h $ V.imap f' ps
     where f' i = if x >= startX && x < endX && y >= startY && y < endY then
                     -- if it's inside the window apply the function
                     f (x-startX) (y-startY)
                  else
                     const b
-                 where (y,x) = i `divMod` Dims.width sz
+                 where (y,x) = i `divMod` width img
 
 
-zipImage :: Image w h a -> Image w h b -> Image w h (a, b)
-zipImage img1@(Image sza xs) img2@(Image szb ys) = Image sza (V.zip xs ys)
-
-
-{-# INLINE unsafePixelAt #-}
 unsafePixelAt :: Image w h p
               -> Int -- x
               -> Int -- y
               -> p
-unsafePixelAt img@(Image sz _) x y = unsafeGetAt img (Dims.width sz * Dims.height sz + x)
+unsafePixelAt img x y =
+    unsafeGetAt img (width img * y + x)
+{-# INLINE unsafePixelAt #-}
 
 
-{-# INLINE unsafeGetAt #-}
 unsafeGetAt :: Image w h p
             -> Int -- | pixel index
             -> p
-unsafeGetAt img@(Image _ ps) i = ps V.! i
+unsafeGetAt img@(UnsafeImage _ _ ps) i = ps V.! i
+{-# INLINE unsafeGetAt #-}
 
 
-makeImage :: Int
-          -> Int
-          -> (Int -> Int -> p)
+makeImage :: Int -- width
+          -> Int -- height
+          -> (Int -> Int -> p) -- p(x,y)
           -> Image w h p
 makeImage w h pf =
     let pxs = [pf x y | y <- [0..h-1], x <- [0..w-1]]
-    in Image (makeDims w h) (V.fromList pxs)
+    in UnsafeImage (fromIntegral w) (fromIntegral h) (V.fromList pxs)
