@@ -39,13 +39,8 @@ main = do
                     IIO.writeImageAsPng "ttt.png" 
                         (maxFilter 
                             (maxFilterRadius cdsOpts)
-                            (imapROI 
-                                (\x y a -> a)
-                                0
-                                (clearRegion query isLabelRegion)
-                                (160, 160)
-                                (width query - 60, height query -60)
-                            ))
+                            (clearRegion query isLabelRegion)
+                            )
     return ()
 
 

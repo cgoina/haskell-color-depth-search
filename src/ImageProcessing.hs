@@ -2,7 +2,11 @@
 {-# LANGUAGE RankNTypes #-}
 
 
-module ImageProcessing ( clearRegion, horizontalMirror, maxFilter )
+module ImageProcessing ( clearRegion
+                       , horizontalMirror
+                       , maxFilter
+                       , circleRadii
+                       )
 where
 
 import Image ( Image, width, height, imap
