@@ -29,6 +29,7 @@ library
       Image
       ImageIO
       ImageProcessing
+      Internal
       Pixel
       Stencil
   other-modules:

@@ -5,14 +5,15 @@
 module ImageProcessing ( clearRegion
                        , horizontalMirror
                        , maxFilter
-                       , circleRadii
+                       , circleRadii'
                        )
 where
 
 import Image ( Image, width, height, imap
              , unsafeGetAt , unsafePixelAt )
 import Pixel ( Pixel(clear) )
-
+import Stencil
+import Internal
 
 clearRegion :: forall w h p. Pixel p => Image w h p -> (Int -> Int -> Bool) -> Image w h p
 clearRegion img regionCond = imap f img
@@ -46,19 +47,6 @@ shift img dx dy = imap f img
                     clear p
 
 
-type Coord = (Int, Int)
-
-type Dims = (Int, Int)
-
-instance (Num a, Num b) => Num (a, b) where
-    (x, y) + (x', y') = (x+x', y+y')
-    (x, y) - (x', y') = (x-x', y-y')
-    (x, y) * (x', y') = (x*x', y*y')
-    abs (x,y) = (abs x, abs y)
-    signum (x, y) = (signum x, signum y)
-    fromInteger x = (fromInteger x, fromInteger x)
-
-
 maxFilter :: forall w h r p. (Ord p, RealFrac r) => r -> Image w h p -> Image w h p
 maxFilter r img = imap f img
     where
@@ -77,10 +65,11 @@ absNeighborIndexes p sz@(w, h) coords = map toIndex (filter checkBoundaries (map
 
 
 neighborCoords :: (RealFrac r) => r -> [Coord]
-neighborCoords = expandAllCoords . circleRadii
+neighborCoords = expandAllCoords . circleRadii'
 
-circleRadii :: RealFrac r => r -> [Coord]
-circleRadii r =
+
+circleRadii' :: RealFrac r => r -> [Coord]
+circleRadii' r =
     let radius = adjustRadius r
         r2 = floor (radius * radius) + 1
         kernelRadius = isqrt (radius * radius + 1)

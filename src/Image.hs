@@ -16,6 +16,7 @@
 {-# OPTIONS_GHC -ddump-splices #-}
 {-# OPTIONS_GHC -fprint-potential-instances #-}
 
+
 module Image ( Image
              , width, height
              , imap, imapROI
@@ -34,6 +35,7 @@ import qualified GHC.TypeNats as TN
 import GHC.Natural
 import GHC.Num (integerToNatural)
 
+import Internal
 
 data ShiftOptions = None | One | Two
                     deriving Show
@@ -155,3 +157,12 @@ makeImage :: Int -- width
 makeImage w h pf =
     let pxs = [pf x y | y <- [0..h-1], x <- [0..w-1]]
     in UnsafeImage (fromIntegral w) (fromIntegral h) (V.fromList pxs)
+
+
+createUnsafeWindow :: Image w h e
+                   -> Coord -- start
+                   -> Dims -- size
+                   -> ImageWindow e
+createUnsafeWindow img start sz = ImageWindow start sz wi
+    where
+        wi coord =  uncurry (unsafePixelAt img) (liftCoord2 (+) start coord)
